@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Concept, ConceptEdge, LearningSession
 from app.services.root_gap_service import RootGapService
+from tests.factories import add_learning_session
 
 
 # Hypothesis strategies for generating test data
@@ -97,6 +98,9 @@ class TestProperty29GapScoreCalculationFollowsFormula:
     ):
         """Property test: Gap score uses correct formula components."""
         # Feature: rootlearn-knowledge-debugger, Property 29: Gap score calculation follows formula
+        test_session = await add_learning_session(
+            db_session, user_id=test_session.user_id, status="diagnosing"
+        )
         
         # Arrange - Create a simple graph: prereq -> target
         prereq = Concept(
@@ -183,6 +187,9 @@ class TestProperty29GapScoreCalculationFollowsFormula:
     ):
         """Property test: Lower mastery leads to higher gap score (all else equal)."""
         # Feature: rootlearn-knowledge-debugger, Property 29: Gap score calculation follows formula
+        test_session = await add_learning_session(
+            db_session, user_id=test_session.user_id, status="diagnosing"
+        )
         
         # Assume we have different mastery levels to compare
         assume(mastery < Decimal("0.9"))  # Leave room for comparison
@@ -300,6 +307,9 @@ class TestProperty30RootGapSelectionIsMaximumGapScore:
     ):
         """Property test: Root gap has the maximum gap score among candidates."""
         # Feature: rootlearn-knowledge-debugger, Property 30: Root gap selection is maximum gap score
+        test_session = await add_learning_session(
+            db_session, user_id=test_session.user_id, status="diagnosing"
+        )
         
         concepts_data, edges_data = graph_data
         
@@ -352,17 +362,11 @@ class TestProperty30RootGapSelectionIsMaximumGapScore:
             G = nx.DiGraph()
             for concept in concepts:
                 G.add_node(concept.id)
-            
-            edges_result = await db_session.execute(
-                f"SELECT source_concept_id, target_concept_id FROM concept_edges WHERE session_id = '{test_session.id}'"
-            )
-            for source_id, target_id in edges_result:
-                G.add_edge(source_id, target_id)
-            
-            concept_map = {c.id: c for c in concepts}
-            edges_list = await db_session.execute(
-                f"SELECT * FROM concept_edges WHERE session_id = '{test_session.id}'"
-            )
+            for edge_data in edges_data:
+                G.add_edge(
+                    concepts[edge_data["source_idx"]].id,
+                    concepts[edge_data["target_idx"]].id,
+                )
             
             # The selected root gap should not be the target
             assert result.concept.id != target_concept.id
@@ -507,6 +511,9 @@ class TestProperty31RootGapExplanationCompleteness:
     ):
         """Property test: Root gap explanation contains all required fields."""
         # Feature: rootlearn-knowledge-debugger, Property 31: Root gap explanation completeness
+        test_session = await add_learning_session(
+            db_session, user_id=test_session.user_id, status="diagnosing"
+        )
         
         # Arrange - Create a simple graph with one weak prerequisite
         mastery_decimal = Decimal(str(round(mastery, 4)))
@@ -588,6 +595,9 @@ class TestProperty31RootGapExplanationCompleteness:
     ):
         """Property test: Explanation reasons provide meaningful information."""
         # Feature: rootlearn-knowledge-debugger, Property 31: Root gap explanation completeness
+        test_session = await add_learning_session(
+            db_session, user_id=test_session.user_id, status="diagnosing"
+        )
         
         concepts_data, edges_data = graph_data
         
@@ -673,6 +683,9 @@ class TestProperty32HighMasteryConceptsExcludedFromRootGap:
     ):
         """Property test: Concepts with mastery > 0.70 are not selected as root gap."""
         # Feature: rootlearn-knowledge-debugger, Property 32: High-mastery concepts excluded from root gap
+        test_session = await add_learning_session(
+            db_session, user_id=test_session.user_id, status="diagnosing"
+        )
         
         # Arrange - Create target
         target = Concept(
@@ -838,6 +851,9 @@ class TestProperty32HighMasteryConceptsExcludedFromRootGap:
     ):
         """Property test: The 0.70 mastery threshold is consistently enforced."""
         # Feature: rootlearn-knowledge-debugger, Property 32: High-mastery concepts excluded from root gap
+        test_session = await add_learning_session(
+            db_session, user_id=test_session.user_id, status="diagnosing"
+        )
         
         # Arrange - Create single prerequisite with varying mastery
         target = Concept(

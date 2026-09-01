@@ -1,12 +1,12 @@
 """Unit tests for MasteryService."""
-import uuid
 from decimal import Decimal
 
 import pytest
 from sqlalchemy import select
 
-from app.models import Concept, DiagnosticAttempt, MasteryEvent
+from app.models import Concept, MasteryEvent
 from app.services.mastery_service import Evidence, MasteryService
+from tests.factories import add_diagnostic_attempt
 
 
 @pytest.mark.asyncio
@@ -26,15 +26,14 @@ async def test_update_mastery_with_diagnostic_evidence(db_session, test_session)
     await db_session.flush()
     
     # Create diagnostic attempt (evidence)
-    attempt = DiagnosticAttempt(
-        question_id=uuid.uuid4(),  # Not testing question creation here
+    attempt = await add_diagnostic_attempt(
+        db_session,
         session_id=test_session.id,
         concept_id=concept.id,
         student_answer="Test answer",
         correctness_score=Decimal("0.75"),
         reasoning_score=Decimal("0.80"),
     )
-    db_session.add(attempt)
     await db_session.flush()
     
     # Update mastery
@@ -71,15 +70,14 @@ async def test_update_mastery_event_persistence(db_session, test_session, test_c
     service = MasteryService(db_session)
     
     # Create diagnostic evidence
-    attempt = DiagnosticAttempt(
-        question_id=uuid.uuid4(),
+    attempt = await add_diagnostic_attempt(
+        db_session,
         session_id=test_session.id,
         concept_id=test_concept.id,
         student_answer="Answer",
         correctness_score=Decimal("0.60"),
         reasoning_score=Decimal("0.65"),
     )
-    db_session.add(attempt)
     await db_session.flush()
     
     evidence = Evidence(
@@ -117,15 +115,14 @@ async def test_update_mastery_multiple_times(db_session, test_session, test_conc
     service = MasteryService(db_session)
     
     # First update
-    attempt1 = DiagnosticAttempt(
-        question_id=uuid.uuid4(),
+    attempt1 = await add_diagnostic_attempt(
+        db_session,
         session_id=test_session.id,
         concept_id=test_concept.id,
         student_answer="First answer",
         correctness_score=Decimal("0.50"),
         reasoning_score=Decimal("0.55"),
     )
-    db_session.add(attempt1)
     await db_session.flush()
     
     event1 = await service.update_mastery(
@@ -135,15 +132,14 @@ async def test_update_mastery_multiple_times(db_session, test_session, test_conc
     await db_session.commit()
     
     # Second update
-    attempt2 = DiagnosticAttempt(
-        question_id=uuid.uuid4(),
+    attempt2 = await add_diagnostic_attempt(
+        db_session,
         session_id=test_session.id,
         concept_id=test_concept.id,
         student_answer="Second answer",
         correctness_score=Decimal("0.80"),
         reasoning_score=Decimal("0.85"),
     )
-    db_session.add(attempt2)
     await db_session.flush()
     
     event2 = await service.update_mastery(
@@ -185,15 +181,14 @@ async def test_update_mastery_updates_status(db_session, test_session):
     service = MasteryService(db_session)
     
     # Add high-score diagnostic evidence
-    attempt = DiagnosticAttempt(
-        question_id=uuid.uuid4(),
+    attempt = await add_diagnostic_attempt(
+        db_session,
         session_id=test_session.id,
         concept_id=concept.id,
         student_answer="Great answer",
         correctness_score=Decimal("0.90"),
         reasoning_score=Decimal("0.95"),
     )
-    db_session.add(attempt)
     await db_session.flush()
     
     # Update mastery

@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Concept, ConceptEdge, LearningSession
 from app.services.learning_path_service import LearningPathService
+from tests.factories import add_learning_session
 
 
 # Hypothesis strategies for generating test data
@@ -74,11 +75,15 @@ def learning_graph(draw):
         if draw(st.booleans()):  # Randomly add edges
             # Ensure we maintain DAG property (lower index to higher index)
             target_candidate = draw(st.integers(min_value=i+1, max_value=num_concepts-1))
-            edges_data.append({
-                "source_idx": i,
-                "target_idx": target_candidate,
-                "weight": draw(valid_score())
-            })
+            if not any(
+                edge["source_idx"] == i and edge["target_idx"] == target_candidate
+                for edge in edges_data
+            ):
+                edges_data.append({
+                    "source_idx": i,
+                    "target_idx": target_candidate,
+                    "weight": draw(valid_score())
+                })
     
     return concepts_data, edges_data
 
@@ -104,6 +109,9 @@ class TestProperty47TopologicalOrderingOfPrerequisites:
     ):
         """Property test: Prerequisites always appear before their dependents."""
         # Feature: rootlearn-knowledge-debugger, Property 47: Topological ordering of prerequisites
+        test_session = await add_learning_session(
+            db_session, user_id=test_session.user_id, status="diagnosing"
+        )
         
         concepts_data, edges_data = graph_data
         
@@ -299,6 +307,9 @@ class TestProperty48WeakConceptsPrioritized:
     ):
         """Property test: Lower mastery concepts are prioritized."""
         # Feature: rootlearn-knowledge-debugger, Property 48: Weak concepts prioritized
+        test_session = await add_learning_session(
+            db_session, user_id=test_session.user_id, status="diagnosing"
+        )
         
         # Arrange - Create target
         target = Concept(
@@ -500,6 +511,9 @@ class TestProperty50RelevantBranchesOnly:
     ):
         """Property test: Recommended concepts are always on path to target."""
         # Feature: rootlearn-knowledge-debugger, Property 50: Relevant branches only
+        test_session = await add_learning_session(
+            db_session, user_id=test_session.user_id, status="diagnosing"
+        )
         
         concepts_data, edges_data = graph_data
         
@@ -663,6 +677,9 @@ class TestProperty51MasteredConceptsNotRepeated:
     ):
         """Property test: Mastered concepts with high confidence are not repeated."""
         # Feature: rootlearn-knowledge-debugger, Property 51: Mastered concepts are not repeated
+        test_session = await add_learning_session(
+            db_session, user_id=test_session.user_id, status="diagnosing"
+        )
         
         # Arrange - Create target
         target = Concept(
@@ -822,6 +839,9 @@ class TestProperty52TargetRecommendedWhenPathCleared:
     ):
         """Property test: Target is recommended when prerequisites are understood."""
         # Feature: rootlearn-knowledge-debugger, Property 52: Target recommended when path is clear
+        test_session = await add_learning_session(
+            db_session, user_id=test_session.user_id, status="diagnosing"
+        )
         
         # Arrange - Create target
         target = Concept(

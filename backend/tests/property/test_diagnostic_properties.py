@@ -25,6 +25,7 @@ from app.ai.validated_ai_service import ValidatedAIService
 from app.models import Concept, ConceptEdge, DiagnosticQuestion, LearningSession
 from app.services.diagnostic_service import DiagnosticService
 from app.services.mastery_service import MasteryService
+from tests.factories import add_learning_session
 
 
 # Mock AI Provider for testing
@@ -135,6 +136,9 @@ class TestProperty13ConceptSelectionFollowsPriorityFormula:
     ):
         """Property test: Selected concept has highest information priority."""
         # Feature: rootlearn-knowledge-debugger, Property 13: Concept selection follows priority formula
+        test_session = await add_learning_session(
+            db_session, user_id=test_session.user_id, status="diagnosing"
+        )
         
         concepts_data, edges_data = graph_data
         
@@ -212,6 +216,9 @@ class TestProperty14DiagnosticQuestionGenerationIsSuccessful:
     ):
         """Property test: Question generation always produces valid question."""
         # Feature: rootlearn-knowledge-debugger, Property 14: Diagnostic question generation is successful
+        test_session = await add_learning_session(
+            db_session, user_id=test_session.user_id, status="diagnosing"
+        )
         
         # Arrange - Create concept
         concept = Concept(
@@ -263,6 +270,9 @@ class TestProperty14DiagnosticQuestionGenerationIsSuccessful:
     ):
         """Property test: Each generate_question call produces exactly one question."""
         # Feature: rootlearn-knowledge-debugger, Property 14: Diagnostic question generation is successful
+        test_session = await add_learning_session(
+            db_session, user_id=test_session.user_id, status="diagnosing"
+        )
         
         # Arrange - Create multiple concepts
         concepts = []
@@ -326,6 +336,9 @@ class TestProperty15AnswerEvaluationProducesStructuredResults:
     ):
         """Property test: Evaluation always includes all required structured fields."""
         # Feature: rootlearn-knowledge-debugger, Property 15: Answer evaluation produces structured results
+        test_session = await add_learning_session(
+            db_session, user_id=test_session.user_id, status="diagnosing"
+        )
         
         # Arrange - Create concept and question
         concept = Concept(
@@ -385,6 +398,9 @@ class TestProperty15AnswerEvaluationProducesStructuredResults:
     ):
         """Property test: Evaluation updates mastery evidence for the concept."""
         # Feature: rootlearn-knowledge-debugger, Property 15: Answer evaluation produces structured results
+        test_session = await add_learning_session(
+            db_session, user_id=test_session.user_id, status="diagnosing"
+        )
         
         # Arrange - Create concept and question
         concept = Concept(
@@ -493,6 +509,9 @@ class TestProperty16DiagnosticQuestionCountIsBounded:
     ):
         """Property test: Diagnosis stops when question count >= 6."""
         # Feature: rootlearn-knowledge-debugger, Property 16: Diagnostic question count is bounded
+        test_session = await add_learning_session(
+            db_session, user_id=test_session.user_id, status="diagnosing"
+        )
         
         # Arrange - Create concept and questions
         concept = Concept(
@@ -559,6 +578,9 @@ class TestProperty17DiagnosisStopsAtConfidenceThreshold:
     ):
         """Property test: Diagnosis stops when key concepts reach 0.80 confidence."""
         # Feature: rootlearn-knowledge-debugger, Property 17: Diagnosis stops at confidence threshold
+        test_session = await add_learning_session(
+            db_session, user_id=test_session.user_id, status="diagnosing"
+        )
         
         # Arrange - Create target concept with varying confidence
         target_concept = Concept(
@@ -635,6 +657,9 @@ class TestProperty18HighMasteryConceptsNotRepeatedlyTested:
     ):
         """Property test: Concepts with high mastery+confidence are not selected."""
         # Feature: rootlearn-knowledge-debugger, Property 18: High-mastery concepts are not repeatedly tested
+        test_session = await add_learning_session(
+            db_session, user_id=test_session.user_id, status="diagnosing"
+        )
         
         # Arrange - Create high-mastery concept
         high_mastery_concept = Concept(
@@ -704,6 +729,9 @@ class TestProperty18HighMasteryConceptsNotRepeatedlyTested:
     ):
         """Property test: Concept selection filters based on mastery+confidence thresholds."""
         # Feature: rootlearn-knowledge-debugger, Property 18: High-mastery concepts are not repeatedly tested
+        test_session = await add_learning_session(
+            db_session, user_id=test_session.user_id, status="diagnosing"
+        )
         
         # Arrange - Create concept with varying mastery and confidence
         concept = Concept(

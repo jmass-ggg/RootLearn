@@ -40,6 +40,17 @@ from app.services.mastery_service import Evidence, MasteryService
 logger = get_logger(__name__)
 
 
+def _sanitize_user_text(value: str) -> str:
+    """Return text that can be safely persisted by PostgreSQL.
+
+    PostgreSQL text and JSONB values reject the NUL code point.  Replacing it
+    preserves the rest of a submitted answer while ensuring the same safe text
+    is sent to the AI provider, written to the attempt, and captured in AI-run
+    logging.
+    """
+    return value.replace("\x00", "\ufffd")
+
+
 @dataclass
 class DiagnosticResult:
     """Result of diagnostic answer evaluation."""
@@ -378,6 +389,8 @@ class DiagnosticService:
             
         Requirements: 5.5, 5.6
         """
+        safe_answer = _sanitize_user_text(answer)
+
         # Get the diagnostic question
         result = await self.db.execute(
             select(DiagnosticQuestion).where(DiagnosticQuestion.id == question_id)
@@ -397,7 +410,7 @@ class DiagnosticService:
         user_prompt = get_diagnostic_evaluation_user_prompt(
             question_text=question.question_text,
             rubric=question.rubric_json,
-            student_answer=answer,
+            student_answer=safe_answer,
         )
         
         evaluation_output: DiagnosticEvaluationOutput = (
@@ -417,7 +430,7 @@ class DiagnosticService:
             question_id=question_id,
             session_id=question.session_id,
             concept_id=question.concept_id,
-            student_answer=answer,
+            student_answer=safe_answer,
             correctness_score=Decimal(str(evaluation_output.correctness_score)),
             reasoning_score=Decimal(str(evaluation_output.reasoning_score)),
             misconceptions_json=evaluation_output.misconceptions,

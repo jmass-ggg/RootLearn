@@ -386,6 +386,7 @@ class TutorService:
             session_id=session_id,
             purpose="socratic_tutoring",
             prompt_version=SOCRATIC_TUTOR_VERSION,
+            provider=provider,
             input_data={
                 "system_prompt": system_prompt,
                 "user_prompt": user_prompt,

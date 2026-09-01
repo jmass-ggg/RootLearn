@@ -1,11 +1,11 @@
 """Pytest configuration and fixtures for tests."""
-import asyncio
 import os
 from typing import AsyncGenerator
 from decimal import Decimal
 
 import pytest
 import pytest_asyncio
+from hypothesis import HealthCheck, settings
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
@@ -13,19 +13,21 @@ from app.database import Base
 from app.models import User, LearningSession, Concept, ConceptEdge
 
 
+# Database-backed property tests intentionally share their function-scoped
+# fixture across generated examples.  The tests create unique rows for each
+# example, and the database is recreated for every test function.
+settings.register_profile(
+    "database",
+    suppress_health_check=[HealthCheck.function_scoped_fixture],
+)
+settings.load_profile("database")
+
+
 # Use a separate test database
 TEST_DATABASE_URL = os.getenv(
     "TEST_DATABASE_URL",
     "postgresql+asyncpg://rootlearn:rootlearn@localhost:5432/rootlearn_test"
 )
-
-
-@pytest.fixture(scope="session")
-def event_loop():
-    """Create an instance of the default event loop for the test session."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -62,9 +64,9 @@ async def db_session(db_engine) -> AsyncGenerator[AsyncSession, None]:
     )
     
     async with async_session() as session:
-        async with session.begin():
+        try:
             yield session
-            # Rollback to ensure test isolation
+        finally:
             await session.rollback()
 
 

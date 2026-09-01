@@ -30,6 +30,7 @@ class AILoggingService:
         purpose: str,
         prompt_version: str,
         input_data: dict[str, Any],
+        provider: Any | None = None,
     ) -> AIRun:
         """Log the start of an AI invocation.
         
@@ -44,16 +45,27 @@ class AILoggingService:
         Returns:
             Created AIRun with pending status
         """
-        from app.ai.factory import get_ai_provider
-        
-        provider = get_ai_provider()
+        if provider is None:
+            from app.ai.factory import get_ai_provider
+
+            provider = get_ai_provider()
+
+        provider_name = getattr(provider, "provider_name", None)
+        if not isinstance(provider_name, str):
+            provider_name = type(provider).__name__.replace("Provider", "").lower()
+
+        model_name = getattr(provider, "model_name", None)
+        if not isinstance(model_name, str):
+            model_name = getattr(provider, "model", "unknown")
+        if not isinstance(model_name, str):
+            model_name = "unknown"
         
         ai_run = AIRun(
             id=uuid.uuid4(),
             session_id=session_id,
             purpose=purpose,
-            provider=provider.provider_name,
-            model=provider.model_name,
+            provider=provider_name,
+            model=model_name,
             prompt_version=prompt_version,
             input_json=input_data,
             output_json=None,

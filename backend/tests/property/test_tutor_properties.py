@@ -10,7 +10,7 @@ Validates: Requirements 9.1, 9.2, 9.5, 9.6, 9.8
 """
 import uuid
 from decimal import Decimal
-from unittest.mock import AsyncMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from hypothesis import given, settings, strategies as st, HealthCheck
@@ -19,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Concept, ConceptEdge, LearningSession, TutorMessage, MasteryEvent
 from app.services.tutor_service import TutorService, TutorContext
+from tests.factories import add_learning_session
 
 
 # Hypothesis strategies
@@ -44,15 +45,13 @@ def user_message_text(draw):
     template = draw(st.sampled_from(templates))
     
     if "{}" in template:
+        placeholder_count = template.count("{}")
         words = draw(st.lists(
             st.text(min_size=3, max_size=15, alphabet=st.characters(whitelist_categories=("Lu", "Ll"))),
-            min_size=1,
-            max_size=2
+            min_size=placeholder_count,
+            max_size=placeholder_count,
         ))
-        try:
-            return template.format(*words)
-        except IndexError:
-            return template.format(words[0])
+        return template.format(*words)
     return template
 
 
@@ -81,6 +80,9 @@ class TestProperty33RootGapTriggersTutoringState:
     ):
         """Property test: Starting tutoring transitions session to tutoring status."""
         # Feature: rootlearn-knowledge-debugger, Property 33: Root gap triggers tutoring state
+        test_session = await add_learning_session(
+            db_session, user_id=test_session.user_id, status="diagnosing"
+        )
         
         # Arrange - Create root gap concept
         mastery_decimal = Decimal(str(round(mastery, 4)))
@@ -147,6 +149,9 @@ class TestProperty33RootGapTriggersTutoringState:
     ):
         """Property test: Tutoring can be started from various valid states."""
         # Feature: rootlearn-knowledge-debugger, Property 33: Root gap triggers tutoring state
+        test_session = await add_learning_session(
+            db_session, user_id=test_session.user_id, status=initial_status
+        )
         
         # Arrange - Create concept
         concept = Concept(
@@ -205,6 +210,9 @@ class TestProperty34TutorResponseGeneration:
     ):
         """Property test: Tutor response generation produces non-empty response."""
         # Feature: rootlearn-knowledge-debugger, Property 34: Tutor response generation
+        test_session = await add_learning_session(
+            db_session, user_id=test_session.user_id, status="tutoring"
+        )
         
         # Arrange - Create target and current concept
         target_concept = Concept(
@@ -262,13 +270,13 @@ class TestProperty34TutorResponseGeneration:
         mock_response = "Let me help you understand this concept. What specific part is confusing?"
         
         with patch('app.services.tutor_service.get_ai_provider') as mock_get_provider:
-            mock_provider = AsyncMock()
+            mock_provider = MagicMock()
             
             async def mock_stream():
                 for chunk in mock_response:
                     yield chunk
             
-            mock_provider.stream_text = AsyncMock(return_value=mock_stream())
+            mock_provider.stream_text.side_effect = lambda **_: mock_stream()
             mock_get_provider.return_value = mock_provider
             
             # Act
@@ -298,6 +306,9 @@ class TestProperty34TutorResponseGeneration:
     ):
         """Property test: Multiple response generations work correctly."""
         # Feature: rootlearn-knowledge-debugger, Property 34: Tutor response generation
+        test_session = await add_learning_session(
+            db_session, user_id=test_session.user_id, status="tutoring"
+        )
         
         # Arrange - Create concepts and edge
         target_concept = Concept(
@@ -351,12 +362,12 @@ class TestProperty34TutorResponseGeneration:
         
         # Mock AI provider
         with patch('app.services.tutor_service.get_ai_provider') as mock_get_provider:
-            mock_provider = AsyncMock()
+            mock_provider = MagicMock()
             
             async def mock_stream():
                 yield "Mock tutor response"
             
-            mock_provider.stream_text = AsyncMock(return_value=mock_stream())
+            mock_provider.stream_text.side_effect = lambda **_: mock_stream()
             mock_get_provider.return_value = mock_provider
             
             service = TutorService(db_session)
@@ -405,6 +416,9 @@ class TestProperty36TutorContextCompleteness:
     ):
         """Property test: Tutor context has all required fields."""
         # Feature: rootlearn-knowledge-debugger, Property 36: Tutor context completeness
+        test_session = await add_learning_session(
+            db_session, user_id=test_session.user_id, status="tutoring"
+        )
         
         # Arrange - Create full context
         target_concept = Concept(
@@ -554,6 +568,9 @@ class TestProperty36TutorContextCompleteness:
     ):
         """Property test: Context includes up to 10 most recent messages."""
         # Feature: rootlearn-knowledge-debugger, Property 36: Tutor context completeness
+        test_session = await add_learning_session(
+            db_session, user_id=test_session.user_id, status="tutoring"
+        )
         
         # Arrange
         target_concept = Concept(
@@ -638,6 +655,9 @@ class TestProperty37TutorMessagePersistence:
     ):
         """Property test: Both user and assistant messages are persisted."""
         # Feature: rootlearn-knowledge-debugger, Property 37: Tutor message persistence
+        test_session = await add_learning_session(
+            db_session, user_id=test_session.user_id, status="tutoring"
+        )
         
         # Arrange
         target_concept = Concept(
@@ -697,12 +717,12 @@ class TestProperty37TutorMessagePersistence:
         
         # Mock AI provider
         with patch('app.services.tutor_service.get_ai_provider') as mock_get_provider:
-            mock_provider = AsyncMock()
+            mock_provider = MagicMock()
             
             async def mock_stream():
                 yield "Assistant response"
             
-            mock_provider.stream_text = AsyncMock(return_value=mock_stream())
+            mock_provider.stream_text.side_effect = lambda **_: mock_stream()
             mock_get_provider.return_value = mock_provider
             
             # Act
@@ -753,6 +773,9 @@ class TestProperty37TutorMessagePersistence:
     ):
         """Property test: All persisted messages have required fields."""
         # Feature: rootlearn-knowledge-debugger, Property 37: Tutor message persistence
+        test_session = await add_learning_session(
+            db_session, user_id=test_session.user_id, status="tutoring"
+        )
         
         # Arrange
         target_concept = Concept(
@@ -806,12 +829,12 @@ class TestProperty37TutorMessagePersistence:
         
         # Mock AI provider
         with patch('app.services.tutor_service.get_ai_provider') as mock_get_provider:
-            mock_provider = AsyncMock()
+            mock_provider = MagicMock()
             
             async def mock_stream():
                 yield "Response"
             
-            mock_provider.stream_text = AsyncMock(return_value=mock_stream())
+            mock_provider.stream_text.side_effect = lambda **_: mock_stream()
             mock_get_provider.return_value = mock_provider
             
             service = TutorService(db_session)
@@ -868,6 +891,9 @@ class TestProperty38TutoringUpdatesPracticeEvidence:
     ):
         """Property test: Practice evidence is updated after tutoring interactions."""
         # Feature: rootlearn-knowledge-debugger, Property 38: Tutoring updates practice evidence
+        test_session = await add_learning_session(
+            db_session, user_id=test_session.user_id, status="tutoring"
+        )
         
         # Arrange
         target_concept = Concept(
@@ -933,12 +959,12 @@ class TestProperty38TutoringUpdatesPracticeEvidence:
         
         # Mock AI provider
         with patch('app.services.tutor_service.get_ai_provider') as mock_get_provider:
-            mock_provider = AsyncMock()
+            mock_provider = MagicMock()
             
             async def mock_stream():
                 yield "Assistant response"
             
-            mock_provider.stream_text = AsyncMock(return_value=mock_stream())
+            mock_provider.stream_text.side_effect = lambda **_: mock_stream()
             mock_get_provider.return_value = mock_provider
             
             service = TutorService(db_session)
@@ -989,6 +1015,9 @@ class TestProperty38TutoringUpdatesPracticeEvidence:
     ):
         """Property test: Practice scoring considers interaction quality."""
         # Feature: rootlearn-knowledge-debugger, Property 38: Tutoring updates practice evidence
+        test_session = await add_learning_session(
+            db_session, user_id=test_session.user_id, status="tutoring"
+        )
         
         # Arrange
         target_concept = Concept(
@@ -1042,12 +1071,12 @@ class TestProperty38TutoringUpdatesPracticeEvidence:
         
         # Mock AI provider
         with patch('app.services.tutor_service.get_ai_provider') as mock_get_provider:
-            mock_provider = AsyncMock()
+            mock_provider = MagicMock()
             
             async def mock_stream():
                 yield "Response"
             
-            mock_provider.stream_text = AsyncMock(return_value=mock_stream())
+            mock_provider.stream_text.side_effect = lambda **_: mock_stream()
             mock_get_provider.return_value = mock_provider
             
             service = TutorService(db_session)

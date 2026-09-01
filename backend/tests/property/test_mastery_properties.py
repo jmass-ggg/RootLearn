@@ -11,8 +11,9 @@ import pytest
 from hypothesis import given, settings, strategies as st, assume, HealthCheck
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Concept, ConceptEdge, DiagnosticAttempt, TeachBackAttempt
+from app.models import Concept, ConceptEdge, TeachBackAttempt
 from app.services.mastery_service import MasteryService, MasteryStatus, Evidence
+from tests.factories import add_diagnostic_attempt
 
 
 # Hypothesis strategies for generating test data
@@ -64,15 +65,14 @@ class TestProperty19MasteryCalculationIsDeterministic:
         
         # Add diagnostic evidence
         for i, score in enumerate(scores["diagnostic"]):
-            attempt = DiagnosticAttempt(
-                question_id=uuid.uuid4(),
+            await add_diagnostic_attempt(
+                db_session,
                 session_id=test_session.id,
                 concept_id=concept.id,
                 student_answer=f"Answer {i}",
                 correctness_score=score,
                 reasoning_score=score,
             )
-            db_session.add(attempt)
         
         # Add teachback evidence
         for i, score in enumerate(scores["teachback"]):
@@ -134,15 +134,14 @@ class TestProperty20EvidenceBasedMasteryFormula:
         await db_session.flush()
         
         # Add diagnostic evidence
-        diagnostic_attempt = DiagnosticAttempt(
-            question_id=uuid.uuid4(),
+        await add_diagnostic_attempt(
+            db_session,
             session_id=test_session.id,
             concept_id=concept.id,
             student_answer="Diagnostic answer",
             correctness_score=diagnostic_score,
             reasoning_score=diagnostic_score,
         )
-        db_session.add(diagnostic_attempt)
         
         # Add teachback evidence
         teachback_attempt = TeachBackAttempt(
@@ -208,15 +207,14 @@ class TestProperty21PartialEvidenceWeightRenormalization:
         await db_session.flush()
         
         # Add only diagnostic evidence
-        diagnostic_attempt = DiagnosticAttempt(
-            question_id=uuid.uuid4(),
+        await add_diagnostic_attempt(
+            db_session,
             session_id=test_session.id,
             concept_id=concept.id,
             student_answer="Answer",
             correctness_score=diagnostic_score,
             reasoning_score=diagnostic_score,
         )
-        db_session.add(diagnostic_attempt)
         await db_session.flush()
         
         # Act
@@ -307,15 +305,14 @@ class TestProperty22MasteryScoreBoundsInvariant:
         
         # Add all evidence
         for score in scores["diagnostic"]:
-            attempt = DiagnosticAttempt(
-                question_id=uuid.uuid4(),
+            await add_diagnostic_attempt(
+                db_session,
                 session_id=test_session.id,
                 concept_id=concept.id,
                 student_answer="Answer",
                 correctness_score=score,
                 reasoning_score=score,
             )
-            db_session.add(attempt)
         
         for score in scores["teachback"]:
             attempt = TeachBackAttempt(
@@ -370,15 +367,14 @@ class TestProperty23ConfidenceFromEvidenceQuantity:
         
         # Add diagnostic attempts
         for i in range(num_attempts):
-            attempt = DiagnosticAttempt(
-                question_id=uuid.uuid4(),
+            await add_diagnostic_attempt(
+                db_session,
                 session_id=test_session.id,
                 concept_id=concept.id,
                 student_answer=f"Answer {i}",
                 correctness_score=Decimal("0.5"),
                 reasoning_score=Decimal("0.5"),
             )
-            db_session.add(attempt)
         
         await db_session.flush()
         

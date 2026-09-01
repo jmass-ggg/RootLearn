@@ -6,8 +6,13 @@ environment variables. Keeps provider instantiation centralized.
 from functools import lru_cache
 from typing import Literal
 
+from fastapi import Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from ..config import Settings, get_settings
+from ..database import get_db
 from .exceptions import AIProviderError
+from .logging_service import AIRunLogger
 from .protocol import AIProvider
 from .providers.openai_provider import OpenAIProvider
 from .validated_ai_service import ValidatedAIService
@@ -87,7 +92,7 @@ def get_ai_provider() -> AIProvider:
     return create_ai_provider()
 
 
-def get_ai_service() -> ValidatedAIService:
+def get_ai_service(db: AsyncSession = Depends(get_db)) -> ValidatedAIService:
     """Get ValidatedAIService instance for FastAPI dependency injection.
     
     This function creates a ValidatedAIService wrapping the configured
@@ -97,4 +102,4 @@ def get_ai_service() -> ValidatedAIService:
         ValidatedAIService instance with retry logic and validation
     """
     provider = get_ai_provider()
-    return ValidatedAIService(provider)
+    return ValidatedAIService(provider, AIRunLogger(db))

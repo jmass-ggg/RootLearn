@@ -55,7 +55,14 @@ class LearningSession(Base):
     original_prompt: Mapped[str] = mapped_column(Text, nullable=False)
     normalized_topic: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     target_concept_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("concepts.id", ondelete="SET NULL"), nullable=True
+        UUID(as_uuid=True),
+        ForeignKey(
+            "concepts.id",
+            name="fk_learning_sessions_target_concept_id",
+            ondelete="SET NULL",
+            use_alter=True,
+        ),
+        nullable=True,
     )
     status: Mapped[str] = mapped_column(String, nullable=False, index=True)
     created_at: Mapped[datetime] = mapped_column(

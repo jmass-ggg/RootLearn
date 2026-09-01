@@ -88,7 +88,7 @@ class RootGapService:
         concept = concept_map[concept_id]
         
         # Component 1: (1 - mastery) - measures gap size
-        mastery_gap = float(1.0 - concept.mastery_score)
+        mastery_gap = float(Decimal("1.0") - concept.mastery_score)
         
         # Component 2: confidence - measures certainty of assessment
         confidence = float(concept.confidence_score)

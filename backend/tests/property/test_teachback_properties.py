@@ -20,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Concept, LearningSession, TeachBackAttempt, MasteryEvent
 from app.services.teachback_service import TeachBackService
+from tests.factories import add_learning_session
 
 
 # Hypothesis strategies
@@ -30,11 +31,9 @@ def valid_score(draw):
     return Decimal(str(round(value, 4)))
 
 
-@st.composite
-def unique_concept_slug(draw):
+def unique_concept_slug():
     """Generate a unique concept slug for each test run."""
-    import uuid
-    return f"concept-{str(uuid.uuid4())[:8]}"
+    return st.uuids().map(lambda value: f"concept-{str(value)[:8]}")
 
 
 @st.composite
@@ -92,6 +91,9 @@ class TestProperty40TeachBackEvaluationStructure:
         clarity: float
     ):
         """Property test: Teach-back evaluation returns coverage, reasoning, and clarity scores."""
+        test_session = await add_learning_session(
+            db_session, user_id=test_session.user_id, status="teachback"
+        )
         # Feature: rootlearn-knowledge-debugger, Property 40: Teach-back evaluation structure
         
         # Arrange - Create concept with unique slug
@@ -169,6 +171,9 @@ class TestProperty40TeachBackEvaluationStructure:
     ):
         """Property test: Evaluation works for explanations of various lengths."""
         # Feature: rootlearn-knowledge-debugger, Property 40: Teach-back evaluation structure
+        test_session = await add_learning_session(
+            db_session, user_id=test_session.user_id, status="teachback"
+        )
         
         # Arrange
         concept = Concept(
@@ -247,6 +252,9 @@ class TestProperty41TeachBackEvaluationDetails:
     ):
         """Property test: Evaluation identifies demonstrated points, missing points, and misconceptions."""
         # Feature: rootlearn-knowledge-debugger, Property 41: Teach-back evaluation details
+        test_session = await add_learning_session(
+            db_session, user_id=test_session.user_id, status="teachback"
+        )
         
         # Arrange
         concept = Concept(
@@ -338,6 +346,9 @@ class TestProperty42TeachBackFeedsMasteryEngine:
         initial_mastery: Decimal
     ):
         """Property test: Teach-back evaluation creates mastery event with teachback source."""
+        test_session = await add_learning_session(
+            db_session, user_id=test_session.user_id, status="teachback"
+        )
         # Feature: rootlearn-knowledge-debugger, Property 42: Teach-back feeds mastery engine
         
         # Arrange
@@ -427,6 +438,9 @@ class TestProperty42TeachBackFeedsMasteryEngine:
     ):
         """Property test: Teach-back evaluation updates concept mastery score."""
         # Feature: rootlearn-knowledge-debugger, Property 42: Teach-back feeds mastery engine
+        test_session = await add_learning_session(
+            db_session, user_id=test_session.user_id, status="teachback"
+        )
         
         # Arrange
         initial_mastery = Decimal("0.50")
@@ -504,6 +518,9 @@ class TestProperty43InsufficientTeachBackReturnsTutoring:
     ):
         """Property test: Teach-back with score < 0.70 signals to continue tutoring."""
         # Feature: rootlearn-knowledge-debugger, Property 43: Insufficient teach-back returns to tutoring
+        test_session = await add_learning_session(
+            db_session, user_id=test_session.user_id, status="teachback"
+        )
         
         # Arrange
         concept = Concept(
@@ -570,6 +587,9 @@ class TestProperty43InsufficientTeachBackReturnsTutoring:
     ):
         """Property test: Low scores in any dimension can result in continuing tutoring."""
         # Feature: rootlearn-knowledge-debugger, Property 43: Insufficient teach-back returns to tutoring
+        test_session = await add_learning_session(
+            db_session, user_id=test_session.user_id, status="teachback"
+        )
         
         # Arrange
         concept = Concept(
@@ -639,6 +659,9 @@ class TestProperty44SufficientTeachBackProceeds:
     ):
         """Property test: Teach-back with score >= 0.70 signals to proceed."""
         # Feature: rootlearn-knowledge-debugger, Property 44: Sufficient teach-back proceeds
+        test_session = await add_learning_session(
+            db_session, user_id=test_session.user_id, status="teachback"
+        )
         
         # Arrange
         concept = Concept(
@@ -722,6 +745,9 @@ class TestProperty45TeachBackPersistence:
     ):
         """Property test: Teach-back creates persistent attempt record with all scores."""
         # Feature: rootlearn-knowledge-debugger, Property 45: Teach-back persistence
+        test_session = await add_learning_session(
+            db_session, user_id=test_session.user_id, status="teachback"
+        )
         
         # Arrange
         concept = Concept(
@@ -808,6 +834,9 @@ class TestProperty45TeachBackPersistence:
     ):
         """Property test: Multiple teach-back attempts are all persisted separately."""
         # Feature: rootlearn-knowledge-debugger, Property 45: Teach-back persistence
+        test_session = await add_learning_session(
+            db_session, user_id=test_session.user_id, status="teachback"
+        )
         
         # Arrange
         concept = Concept(
