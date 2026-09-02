@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, forwardRef, useImperativeHandle } from 'react';
 import {
   ReactFlow,
   Node,
@@ -14,33 +14,49 @@ import {
   MarkerType,
   OnNodesChange,
   OnEdgesChange,
+  useReactFlow,
+  ReactFlowProvider,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { PrerequisiteGraph, Concept, MasteryStatus } from '@/types/graph';
 import ConceptNode, { ConceptNodeData } from './ConceptNode';
+import { StateDisplay } from './ui/StateDisplay';
+import { colors } from '@/theme/tokens';
 
 interface KnowledgeGraphProps {
+  graph: PrerequisiteGraph | undefined;
+  onNodeClick?: (concept: Concept) => void;
+}
+
+export interface GraphControlsRef {
+  fitView: () => void;
+  zoomIn: () => void;
+  zoomOut: () => void;
+}
+
+interface KnowledgeGraphInternalProps {
   graph: PrerequisiteGraph;
   onNodeClick?: (concept: Concept) => void;
 }
 
 /**
- * Get color based on mastery status
+ * Get color based on mastery status using design tokens
  */
 function getNodeColor(status: MasteryStatus): string {
   switch (status) {
     case 'weak':
-      return '#ef4444'; // red
+      return colors.mastery.weak;
     case 'learning':
-      return '#eab308'; // yellow
+      return colors.mastery.learning;
     case 'understood':
-      return '#84cc16'; // light green
+      return colors.mastery.understood;
     case 'mastered':
-      return '#22c55e'; // dark green
+      return colors.mastery.mastered;
     case 'locked':
-      return '#9ca3af'; // gray
+      return colors.mastery.locked;
+    case 'unknown':
     default:
-      return '#6b7280'; // gray
+      return colors.mastery.unknown;
   }
 }
 
@@ -175,65 +191,134 @@ function edgesToFlowEdges(edges: PrerequisiteGraph['edges']): Edge[] {
 }
 
 /**
- * KnowledgeGraph component
+ * KnowledgeGraph component (internal)
  * Renders a prerequisite graph using React Flow
  */
-export default function KnowledgeGraph({
-  graph,
-  onNodeClick,
-}: KnowledgeGraphProps) {
-  const initialNodes = useMemo(
-    () => conceptsToNodes(graph.concepts, graph.edges, graph.root_gap_id),
-    [graph.concepts, graph.edges, graph.root_gap_id]
-  );
+const KnowledgeGraphInternal = forwardRef<GraphControlsRef, KnowledgeGraphInternalProps>(
+  ({ graph, onNodeClick }, ref) => {
+    const reactFlowInstance = useReactFlow();
 
-  const initialEdges = useMemo(
-    () => edgesToFlowEdges(graph.edges),
-    [graph.edges]
-  );
+    const initialNodes = useMemo(
+      () => conceptsToNodes(graph.concepts, graph.edges, graph.root_gap_id),
+      [graph.concepts, graph.edges, graph.root_gap_id]
+    );
 
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+    const initialEdges = useMemo(
+      () => edgesToFlowEdges(graph.edges),
+      [graph.edges]
+    );
 
-  const nodeTypes = useMemo<NodeTypes>(() => ({
-    conceptNode: ConceptNode,
-  }), []);
+    const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+    const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
-  const handleNodeClick = useCallback(
-    (_event: React.MouseEvent, node: Node) => {
-      const nodeData = node.data as ConceptNodeData;
-      if (onNodeClick && nodeData?.concept) {
-        onNodeClick(nodeData.concept);
-      }
-    },
-    [onNodeClick]
-  );
+    const nodeTypes = useMemo<NodeTypes>(() => ({
+      conceptNode: ConceptNode,
+    }), []);
 
-  return (
-    <div className="w-full h-full">
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onNodeClick={handleNodeClick}
-        nodeTypes={nodeTypes}
-        fitView
-        minZoom={0.1}
-        maxZoom={2}
-      >
-        <Background />
-        <Controls />
-        <MiniMap
-          nodeColor={(node) => {
-            const data = node.data as ConceptNodeData;
-            return data?.color || '#6b7280';
-          }}
-          nodeStrokeWidth={3}
-          zoomable
-          pannable
+    const handleNodeClick = useCallback(
+      (_event: React.MouseEvent, node: Node) => {
+        const nodeData = node.data as ConceptNodeData;
+        if (onNodeClick && nodeData?.concept) {
+          onNodeClick(nodeData.concept);
+        }
+      },
+      [onNodeClick]
+    );
+
+    // Expose control methods via ref
+    useImperativeHandle(ref, () => ({
+      fitView: () => {
+        reactFlowInstance.fitView({ padding: 0.2, duration: 300 });
+      },
+      zoomIn: () => {
+        reactFlowInstance.zoomIn({ duration: 300 });
+      },
+      zoomOut: () => {
+        reactFlowInstance.zoomOut({ duration: 300 });
+      },
+    }), [reactFlowInstance]);
+
+    return (
+      <div className="w-full h-full">
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onNodeClick={handleNodeClick}
+          nodeTypes={nodeTypes}
+          fitView
+          minZoom={0.1}
+          maxZoom={2}
+        >
+          <Background />
+          <Controls />
+          <MiniMap
+            nodeColor={(node) => {
+              const data = node.data as ConceptNodeData;
+              return data?.color || '#6b7280';
+            }}
+            nodeStrokeWidth={3}
+            zoomable
+            pannable
+          />
+        </ReactFlow>
+      </div>
+    );
+  }
+);
+
+KnowledgeGraphInternal.displayName = 'KnowledgeGraphInternal';
+
+/**
+ * KnowledgeGraph component with ReactFlowProvider wrapper
+ */
+const KnowledgeGraph = forwardRef<GraphControlsRef, KnowledgeGraphProps>(
+  (props, ref) => {
+    const { graph } = props;
+
+    // Defensive rendering: check for undefined before accessing properties
+    if (graph === undefined) {
+      return (
+        <StateDisplay
+          variant="loading"
+          title="Loading knowledge map..."
+          description="Building your prerequisite graph"
         />
-      </ReactFlow>
-    </div>
-  );
-}
+      );
+    }
+
+    // Check if concepts or edges are undefined
+    if (graph.concepts === undefined || graph.edges === undefined) {
+      return (
+        <StateDisplay
+          variant="loading"
+          title="Loading knowledge map..."
+          description="Building your prerequisite graph"
+        />
+      );
+    }
+
+    // Check if concepts array is empty
+    if (graph.concepts.length === 0) {
+      return (
+        <StateDisplay
+          variant="empty"
+          title="No concepts to display"
+          description="The knowledge map is empty. This might indicate an issue with graph generation."
+        />
+      );
+    }
+
+    // Safe to render - all data is present
+    return (
+      <ReactFlowProvider>
+        <KnowledgeGraphInternal {...props} graph={graph} ref={ref} />
+      </ReactFlowProvider>
+    );
+  }
+);
+
+KnowledgeGraph.displayName = 'KnowledgeGraph';
+
+export default KnowledgeGraph;

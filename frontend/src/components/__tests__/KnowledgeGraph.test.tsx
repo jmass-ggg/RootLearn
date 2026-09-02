@@ -287,4 +287,80 @@ describe('KnowledgeGraph Component', () => {
       expect(screen.getByText('Target')).toBeInTheDocument();
     });
   });
+
+  describe('Property 16 & 17: Defensive rendering for undefined data', () => {
+    it('should render loading state when graph is undefined', () => {
+      // Feature: rootlearn-ui-redesign, Property 16: Graph defensive rendering - concepts
+      render(<KnowledgeGraph graph={undefined} />);
+
+      expect(screen.getByText('Loading knowledge map...')).toBeInTheDocument();
+      expect(screen.getByText('Building your prerequisite graph')).toBeInTheDocument();
+    });
+
+    it('should render loading state when concepts are undefined', () => {
+      // Feature: rootlearn-ui-redesign, Property 16: Graph defensive rendering - concepts
+      const graph = {
+        concepts: undefined as any,
+        edges: [],
+        root_gap_id: null,
+      };
+
+      render(<KnowledgeGraph graph={graph} />);
+
+      expect(screen.getByText('Loading knowledge map...')).toBeInTheDocument();
+    });
+
+    it('should render loading state when edges are undefined', () => {
+      // Feature: rootlearn-ui-redesign, Property 17: Graph defensive rendering - edges
+      const graph = {
+        concepts: [createConcept('1', 'Test', 0.5, 'learning')],
+        edges: undefined as any,
+        root_gap_id: null,
+      };
+
+      render(<KnowledgeGraph graph={graph} />);
+
+      expect(screen.getByText('Loading knowledge map...')).toBeInTheDocument();
+    });
+
+    it('should render empty state when concepts array is empty', () => {
+      // Feature: rootlearn-ui-redesign, Property 18: Graph empty state
+      const graph = {
+        concepts: [],
+        edges: [],
+        root_gap_id: null,
+      };
+
+      render(<KnowledgeGraph graph={graph} />);
+
+      expect(screen.getByText('No concepts to display')).toBeInTheDocument();
+      expect(screen.getByText(/knowledge map is empty/i)).toBeInTheDocument();
+    });
+
+    it('should not crash when calling map on undefined concepts', () => {
+      // Feature: rootlearn-ui-redesign, Property 16: Graph defensive rendering - concepts
+      // This test ensures .map() is never called on undefined
+      const graph = {
+        concepts: undefined as any,
+        edges: [],
+        root_gap_id: null,
+      };
+
+      // Should not throw an error
+      expect(() => render(<KnowledgeGraph graph={graph} />)).not.toThrow();
+    });
+
+    it('should not crash when calling map on undefined edges', () => {
+      // Feature: rootlearn-ui-redesign, Property 17: Graph defensive rendering - edges
+      // This test ensures .map() is never called on undefined
+      const graph = {
+        concepts: [createConcept('1', 'Test', 0.5, 'learning')],
+        edges: undefined as any,
+        root_gap_id: null,
+      };
+
+      // Should not throw an error
+      expect(() => render(<KnowledgeGraph graph={graph} />)).not.toThrow();
+    });
+  });
 });

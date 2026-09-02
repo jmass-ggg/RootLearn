@@ -5,7 +5,8 @@ import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { api, APIError } from '@/lib/api';
 import { SessionResponse } from '@/lib/api';
 import KnowledgeGraph from '@/components/KnowledgeGraph';
-import DiagnosticPanel from '@/components/DiagnosticPanel';
+import { KnowledgeMapCard } from '@/components/KnowledgeMapCard';
+import DiagnosticAssessmentCard from '@/components/DiagnosticAssessmentCard';
 import RootGapCard from '@/components/RootGapCard';
 import TutorPanel from '@/components/TutorPanel';
 import TeachBackPanel from '@/components/TeachBackPanel';
@@ -312,10 +313,22 @@ export default function SessionPage() {
       {session.status === 'analyzing' && <AnalyzingView topic={session.normalized_topic || session.original_prompt} onCancel={() => router.push('/')} />}
 
       {session.status === 'diagnosing' && (
-        <section className="mx-auto grid min-h-[calc(100vh-76px)] max-w-[1540px] gap-6 p-4 sm:p-7 xl:grid-cols-[1.55fr_1fr]">
-          {graphPanel}
-          <div className="soft-card min-h-[680px] overflow-hidden p-6 sm:p-8">
-            <DiagnosticPanel question={currentQuestion || null} evaluation={lastEvaluation} isLoading={questionLoading} onSubmitAnswer={async (answer) => { await submitAnswerMutation.mutateAsync(answer); }} />
+        <section className="flex flex-col md:flex-row gap-6 p-4 md:p-6 lg:p-8">
+          {/* Left column (or top on mobile): Knowledge Map */}
+          <div className="w-full md:w-1/2 lg:w-3/5">
+            {graphPanel}
+          </div>
+          
+          {/* Right column (or bottom on mobile): Diagnostic Assessment */}
+          <div className="w-full md:w-1/2 lg:w-2/5">
+            <DiagnosticAssessmentCard 
+              question={currentQuestion || null} 
+              evaluation={lastEvaluation} 
+              isLoading={questionLoading} 
+              onSubmitAnswer={async (answer) => { 
+                await submitAnswerMutation.mutateAsync(answer); 
+              }} 
+            />
           </div>
         </section>
       )}
@@ -418,22 +431,13 @@ function AnalyzingView({ topic, onCancel }: { topic: string; onCancel: () => voi
 
 function GraphPanel({ graph, isLoading, error, onRetry, topic }: { graph?: PrerequisiteGraph; isLoading: boolean; error: Error | null; onRetry: () => void; topic: string }) {
   return (
-    <div className="soft-card min-h-[680px] overflow-hidden">
-      <div className="border-b border-[#e1e7ef] p-6 sm:p-8">
-        <div className="flex items-start justify-between gap-4">
-          <div><h1 className="text-2xl font-bold"><span className="mr-3 text-[#1463ff]">⌘</span>Knowledge Map</h1><p className="mt-2 text-[#718096]">Prerequisites for {topic}</p></div>
-          <div className="flex gap-2" aria-label="Graph controls"><span className="rounded-lg border border-[#dce5ef] px-3 py-2">⊕</span><span className="rounded-lg border border-[#dce5ef] px-3 py-2">⊖</span><span className="rounded-lg border border-[#dce5ef] px-3 py-2">↶</span></div>
-        </div>
-      </div>
-      <div className="flex flex-wrap gap-x-5 gap-y-2 border-b border-[#e1e7ef] px-6 py-4 text-sm text-[#718096] sm:px-8">
-        {[['#9aa6b7','Unknown'],['#dc4b50','Weak'],['#eca633','Learning'],['#6ee7ad','Understood'],['#20a572','Mastered'],['#d2e90d','Root gap']].map(([color,label]) => <span key={label} className="flex items-center gap-2"><i className="h-3 w-3 rounded-full" style={{ backgroundColor: color }} />{label}</span>)}
-      </div>
-      <div className="h-[540px]">
-        {isLoading ? <LoadingDisplay message="Building your knowledge map…" compact /> : error ? (
-          <div className="flex h-full flex-col items-center justify-center p-6 text-center"><p className="text-[#718096]">{error instanceof APIError && error.status === 404 ? 'Knowledge map is being generated…' : 'Failed to load the knowledge map.'}</p>{!(error instanceof APIError && error.status === 404) && <button type="button" onClick={onRetry} className="mt-4 font-semibold text-[#1463ff]">Retry</button>}</div>
-        ) : graph ? <KnowledgeGraph graph={graph} /> : <div className="flex h-full items-center justify-center text-[#718096]">No knowledge map available yet</div>}
-      </div>
-    </div>
+    <KnowledgeMapCard
+      graph={graph}
+      isLoading={isLoading}
+      error={error}
+      topic={topic}
+      onRetry={onRetry}
+    />
   );
 }
 
