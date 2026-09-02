@@ -1,0 +1,174 @@
+# AlertManager Configuration for RootLearn
+
+global:
+  resolve_timeout: 5m
+  smtp_from: 'alerts@rootlearn.com'
+  smtp_smarthost: 'smtp.gmail.com:587'
+  smtp_auth_username: 'alerts@rootlearn.com'
+  smtp_auth_password: '${SMTP_PASSWORD}'
+  smtp_require_tls: true
+
+# Templates for notifications
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'
+
+# Route configuration
+route:
+  # Default grouping
+  group_by: ['alertname', 'cluster', 'service']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 12h
+  receiver: 'default'
+  
+  # Child routes
+  routes:
+    # Critical alerts to PagerDuty and Slack
+    - match:
+        severity: critical
+      receiver: 'critical-alerts'
+      continue: true
+      group_wait: 0s
+      group_interval: 5m
+      repeat_interval: 4h
+    
+    # Warning alerts to Slack
+    - match:
+        severity: warning
+      receiver: 'warning-alerts'
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 12h
+    
+    # Info alerts to email only
+    - match:
+        severity: info
+      receiver: 'info-alerts'
+      group_wait: 5m
+      group_interval: 30m
+      repeat_interval: 24h
+    
+    # AI-related alerts
+    - match:
+        component: ai
+      receiver: 'ai-team'
+      continue: true
+    
+    # Database-related alerts
+    - match:
+        component: database
+      receiver: 'database-team'
+      continue: true
+
+# Inhibition rules (suppress certain alerts when others are firing)
+inhibit_rules:
+  # Inhibit warning if critical is firing
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'cluster', 'service']
+  
+  # Inhibit downstream alerts if backend is down
+  - source_match:
+      alertname: 'BackendServiceDown'
+    target_match_re:
+      alertname: '^(High.*|Low.*)'
+    equal: ['cluster']
+
+# Receivers
+receivers:
+  # Default receiver
+  - name: 'default'
+    email_configs:
+      - to: 'team@rootlearn.com'
+        headers:
+          Subject: 'RootLearn Alert: {{ .GroupLabels.alertname }}'
+        html: '{{ template "email.default.html" . }}'
+
+  # Critical alerts
+  - name: 'critical-alerts'
+    pagerduty_configs:
+      - service_key: '${PAGERDUTY_SERVICE_KEY}'
+        description: '{{ .GroupLabels.alertname }}: {{ .CommonAnnotations.summary }}'
+        details:
+          firing: '{{ .Alerts.Firing | len }}'
+          resolved: '{{ .Alerts.Resolved | len }}'
+          summary: '{{ .CommonAnnotations.summary }}'
+          description: '{{ .CommonAnnotations.description }}'
+    
+    slack_configs:
+      - api_url: '${SLACK_CRITICAL_WEBHOOK_URL}'
+        channel: '#rootlearn-critical'
+        title: '🚨 CRITICAL: {{ .GroupLabels.alertname }}'
+        text: |
+          {{ range .Alerts }}
+          *Summary:* {{ .Annotations.summary }}
+          *Description:* {{ .Annotations.description }}
+          *Severity:* {{ .Labels.severity }}
+          *Runbook:* {{ .Annotations.runbook }}
+          {{ end }}
+        color: 'danger'
+    
+    email_configs:
+      - to: 'oncall@rootlearn.com'
+        headers:
+          Subject: '🚨 CRITICAL: {{ .GroupLabels.alertname }}'
+        html: '{{ template "email.critical.html" . }}'
+
+  # Warning alerts
+  - name: 'warning-alerts'
+    slack_configs:
+      - api_url: '${SLACK_WARNING_WEBHOOK_URL}'
+        channel: '#rootlearn-alerts'
+        title: '⚠️  WARNING: {{ .GroupLabels.alertname }}'
+        text: |
+          {{ range .Alerts }}
+          *Summary:* {{ .Annotations.summary }}
+          *Description:* {{ .Annotations.description }}
+          *Runbook:* {{ .Annotations.runbook }}
+          {{ end }}
+        color: 'warning'
+    
+    email_configs:
+      - to: 'team@rootlearn.com'
+        headers:
+          Subject: '⚠️  WARNING: {{ .GroupLabels.alertname }}'
+        html: '{{ template "email.warning.html" . }}'
+
+  # Info alerts
+  - name: 'info-alerts'
+    slack_configs:
+      - api_url: '${SLACK_INFO_WEBHOOK_URL}'
+        channel: '#rootlearn-info'
+        title: 'ℹ️  INFO: {{ .GroupLabels.alertname }}'
+        text: |
+          {{ range .Alerts }}
+          {{ .Annotations.summary }}
+          {{ end }}
+        color: 'good'
+
+  # AI team
+  - name: 'ai-team'
+    slack_configs:
+      - api_url: '${SLACK_AI_WEBHOOK_URL}'
+        channel: '#rootlearn-ai-alerts'
+        title: '{{ if eq .Status "firing" }}🔴{{ else }}✅{{ end }} AI Alert: {{ .GroupLabels.alertname }}'
+        text: |
+          {{ range .Alerts }}
+          *Provider:* {{ .Labels.provider }}
+          *Summary:* {{ .Annotations.summary }}
+          *Description:* {{ .Annotations.description }}
+          {{ end }}
+
+  # Database team
+  - name: 'database-team'
+    slack_configs:
+      - api_url: '${SLACK_DB_WEBHOOK_URL}'
+        channel: '#rootlearn-db-alerts'
+        title: '{{ if eq .Status "firing" }}🔴{{ else }}✅{{ end }} Database Alert: {{ .GroupLabels.alertname }}'
+        text: |
+          {{ range .Alerts }}
+          *Summary:* {{ .Annotations.summary }}
+          *Description:* {{ .Annotations.description }}
+          {{ end }}

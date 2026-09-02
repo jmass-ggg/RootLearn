@@ -55,29 +55,50 @@ export default function DiagnosticPanel({
     return 'bg-red-100';
   };
 
+  // Loading State
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="flex items-center justify-center h-64" role="status" aria-live="polite">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-3" aria-hidden="true"></div>
+          <p className="text-gray-600 text-sm">Loading diagnostic question...</p>
+          <span className="sr-only">Loading diagnostic question, please wait</span>
+        </div>
       </div>
     );
   }
 
+  // Empty State
   if (!question) {
     return (
-      <div className="flex items-center justify-center h-64 text-gray-500">
-        <p>No diagnostic question available</p>
+      <div className="flex flex-col items-center justify-center h-64 text-gray-500 p-6" role="status">
+        <svg
+          className="w-16 h-16 text-gray-400 mb-4"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+          />
+        </svg>
+        <p className="text-center">No diagnostic question available yet</p>
+        <p className="text-sm text-gray-400 mt-2">Assessment will begin shortly</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Question Section */}
-      <div className="bg-white rounded-lg shadow-md p-6">
+    <div className="space-y-4 sm:space-y-6">
+      {/* Question Section - Responsive */}
+      <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
         <div className="mb-4">
           <div className="text-sm font-medium text-gray-500 mb-1">
-            Testing: {question.concept_name}
+            Testing: <span className="text-gray-900">{question.concept_name}</span>
           </div>
           <div className="text-xs text-gray-400">
             Difficulty: {Math.round(question.difficulty * 100)}%
@@ -85,29 +106,31 @@ export default function DiagnosticPanel({
         </div>
 
         <div className="prose max-w-none">
-          <p className="text-lg text-gray-900 whitespace-pre-wrap">
+          <p className="text-base sm:text-lg text-gray-900 whitespace-pre-wrap break-words">
             {question.question_text}
           </p>
         </div>
 
-        {/* Answer Input Form */}
+        {/* Answer Input Form - Responsive */}
         {!evaluation && (
-          <form onSubmit={handleSubmit} className="mt-6">
+          <form onSubmit={handleSubmit} className="mt-6" aria-label="Answer diagnostic question">
             <div className="mb-4">
               <label
                 htmlFor="answer"
                 className="block text-sm font-medium text-gray-700 mb-2"
               >
                 Your Answer
+                <span className="sr-only"> (required)</span>
               </label>
               {question.question_type === 'short_answer' ||
               question.question_type === 'reasoning' ||
               question.question_type === 'code' ? (
                 <textarea
                   id="answer"
+                  name="diagnostic-answer"
                   value={answer}
                   onChange={(e) => setAnswer(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                  className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm sm:text-base transition-shadow"
                   rows={question.question_type === 'code' ? 10 : 5}
                   placeholder={
                     question.question_type === 'code'
@@ -116,17 +139,22 @@ export default function DiagnosticPanel({
                   }
                   disabled={isSubmitting}
                   required
+                  aria-required="true"
+                  autoFocus
                 />
               ) : (
                 <input
                   id="answer"
+                  name="diagnostic-answer"
                   type="text"
                   value={answer}
                   onChange={(e) => setAnswer(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base transition-shadow"
                   placeholder="Enter your answer here..."
                   disabled={isSubmitting}
                   required
+                  aria-required="true"
+                  autoFocus
                 />
               )}
             </div>
@@ -134,15 +162,17 @@ export default function DiagnosticPanel({
             <button
               type="submit"
               disabled={isSubmitting || !answer.trim()}
-              className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+              className="w-full bg-blue-600 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all text-sm sm:text-base"
+              aria-label={isSubmitting ? 'Submitting answer, please wait' : 'Submit your answer'}
             >
               {isSubmitting ? (
-                <span className="flex items-center justify-center">
+                <span className="flex items-center justify-center gap-2">
                   <svg
-                    className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                    className="animate-spin h-5 w-5"
                     xmlns="http://www.w3.org/2000/svg"
                     fill="none"
                     viewBox="0 0 24 24"
+                    aria-hidden="true"
                   >
                     <circle
                       className="opacity-25"
@@ -168,29 +198,34 @@ export default function DiagnosticPanel({
         )}
       </div>
 
-      {/* Evaluation Feedback */}
+      {/* Evaluation Feedback - Responsive */}
       {evaluation && (
-        <div className="bg-white rounded-lg shadow-md p-6 space-y-4">
-          <h3 className="text-lg font-semibold text-gray-900">
+        <div 
+          className="bg-white rounded-lg shadow-md p-4 sm:p-6 space-y-4"
+          role="region"
+          aria-label="Evaluation results"
+          aria-live="polite"
+        >
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900">
             Evaluation Results
           </h3>
 
-          {/* Scores */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className={`p-4 rounded-lg ${getMasteryBgColor(evaluation.correctness_score)}`}>
-              <div className="text-sm font-medium text-gray-600 mb-1">
+          {/* Scores - Responsive Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+            <div className={`p-3 sm:p-4 rounded-lg ${getMasteryBgColor(evaluation.correctness_score)}`}>
+              <div className="text-xs sm:text-sm font-medium text-gray-600 mb-1">
                 Correctness
               </div>
-              <div className={`text-2xl font-bold ${getMasteryColor(evaluation.correctness_score)}`}>
+              <div className={`text-xl sm:text-2xl font-bold ${getMasteryColor(evaluation.correctness_score)}`}>
                 {Math.round(evaluation.correctness_score * 100)}%
               </div>
             </div>
 
-            <div className={`p-4 rounded-lg ${getMasteryBgColor(evaluation.reasoning_score)}`}>
-              <div className="text-sm font-medium text-gray-600 mb-1">
+            <div className={`p-3 sm:p-4 rounded-lg ${getMasteryBgColor(evaluation.reasoning_score)}`}>
+              <div className="text-xs sm:text-sm font-medium text-gray-600 mb-1">
                 Reasoning
               </div>
-              <div className={`text-2xl font-bold ${getMasteryColor(evaluation.reasoning_score)}`}>
+              <div className={`text-xl sm:text-2xl font-bold ${getMasteryColor(evaluation.reasoning_score)}`}>
                 {Math.round(evaluation.reasoning_score * 100)}%
               </div>
             </div>
@@ -199,12 +234,13 @@ export default function DiagnosticPanel({
           {/* Demonstrated Points */}
           {evaluation.demonstrated_points.length > 0 && (
             <div>
-              <h4 className="text-sm font-semibold text-green-700 mb-2">
-                ✓ What you got right:
+              <h4 className="text-xs sm:text-sm font-semibold text-green-700 mb-2 flex items-center gap-1">
+                <span aria-hidden="true">✓</span>
+                <span>What you got right:</span>
               </h4>
-              <ul className="space-y-1">
+              <ul className="space-y-1" role="list">
                 {evaluation.demonstrated_points.map((point, index) => (
-                  <li key={index} className="text-sm text-gray-700 pl-4">
+                  <li key={index} className="text-xs sm:text-sm text-gray-700 pl-4 break-words">
                     • {point}
                   </li>
                 ))}
@@ -215,12 +251,13 @@ export default function DiagnosticPanel({
           {/* Missing Points */}
           {evaluation.missing_points.length > 0 && (
             <div>
-              <h4 className="text-sm font-semibold text-orange-700 mb-2">
-                ⚠ What was missing:
+              <h4 className="text-xs sm:text-sm font-semibold text-orange-700 mb-2 flex items-center gap-1">
+                <span aria-hidden="true">⚠</span>
+                <span>What was missing:</span>
               </h4>
-              <ul className="space-y-1">
+              <ul className="space-y-1" role="list">
                 {evaluation.missing_points.map((point, index) => (
-                  <li key={index} className="text-sm text-gray-700 pl-4">
+                  <li key={index} className="text-xs sm:text-sm text-gray-700 pl-4 break-words">
                     • {point}
                   </li>
                 ))}
@@ -231,12 +268,13 @@ export default function DiagnosticPanel({
           {/* Misconceptions */}
           {evaluation.misconceptions.length > 0 && (
             <div>
-              <h4 className="text-sm font-semibold text-red-700 mb-2">
-                ✗ Misconceptions detected:
+              <h4 className="text-xs sm:text-sm font-semibold text-red-700 mb-2 flex items-center gap-1">
+                <span aria-hidden="true">✗</span>
+                <span>Misconceptions detected:</span>
               </h4>
-              <ul className="space-y-1">
+              <ul className="space-y-1" role="list">
                 {evaluation.misconceptions.map((misconception, index) => (
-                  <li key={index} className="text-sm text-gray-700 pl-4">
+                  <li key={index} className="text-xs sm:text-sm text-gray-700 pl-4 break-words">
                     • {misconception}
                   </li>
                 ))}
@@ -246,9 +284,10 @@ export default function DiagnosticPanel({
 
           {/* Diagnosis Status */}
           {evaluation.should_stop && (
-            <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-sm text-blue-800 font-medium">
-                ✓ Diagnostic assessment complete! Moving to root gap identification...
+            <div className="mt-4 p-3 sm:p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-xs sm:text-sm text-blue-800 font-medium flex items-center gap-2">
+                <span aria-hidden="true">✓</span>
+                <span>Diagnostic assessment complete! Moving to root gap identification...</span>
               </p>
             </div>
           )}

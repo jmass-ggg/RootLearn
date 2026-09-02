@@ -1,0 +1,215 @@
+# Prometheus Alert Rules for RootLearn
+
+groups:
+  - name: rootlearn_critical
+    interval: 1m
+    rules:
+      # High API error rate
+      - alert: HighAPIErrorRate
+        expr: |
+          (
+            rate(rootlearn_api_errors_total[5m]) /
+            rate(rootlearn_api_requests_total[5m])
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          component: api
+        annotations:
+          summary: "High API error rate detected"
+          description: "API error rate is {{ $value | humanizePercentage }} (threshold: 5%)"
+          runbook: "https://docs.rootlearn.com/runbooks/high-error-rate"
+
+      # Database unreachable
+      - alert: DatabaseDown
+        expr: up{job="postgres"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: database
+        annotations:
+          summary: "PostgreSQL database is unreachable"
+          description: "Database has been down for 1 minute"
+          runbook: "https://docs.rootlearn.com/runbooks/database-down"
+
+      # AI provider high error rate
+      - alert: AIProviderHighErrorRate
+        expr: |
+          (
+            rate(rootlearn_ai_errors_total[5m]) /
+            rate(rootlearn_ai_requests_total[5m])
+          ) > 0.10
+        for: 5m
+        labels:
+          severity: critical
+          component: ai
+        annotations:
+          summary: "High AI provider error rate"
+          description: "AI error rate is {{ $value | humanizePercentage }} for provider {{ $labels.provider }}"
+          runbook: "https://docs.rootlearn.com/runbooks/ai-errors"
+
+      # Backend service down
+      - alert: BackendServiceDown
+        expr: up{job="rootlearn-backend"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: backend
+        annotations:
+          summary: "Backend service is down"
+          description: "Backend has been unreachable for 2 minutes"
+          runbook: "https://docs.rootlearn.com/runbooks/service-down"
+
+  - name: rootlearn_warning
+    interval: 1m
+    rules:
+      # High API latency
+      - alert: HighAPILatency
+        expr: |
+          histogram_quantile(0.95,
+            rate(rootlearn_api_request_duration_seconds_bucket[5m])
+          ) > 2
+        for: 10m
+        labels:
+          severity: warning
+          component: api
+        annotations:
+          summary: "High API response time"
+          description: "95th percentile latency is {{ $value }}s (threshold: 2s)"
+          runbook: "https://docs.rootlearn.com/runbooks/high-latency"
+
+      # High AI latency
+      - alert: HighAILatency
+        expr: |
+          histogram_quantile(0.95,
+            rate(rootlearn_ai_request_duration_seconds_bucket[5m])
+          ) > 10
+        for: 10m
+        labels:
+          severity: warning
+          component: ai
+        annotations:
+          summary: "High AI provider latency"
+          description: "AI 95th percentile latency is {{ $value }}s for provider {{ $labels.provider }}"
+          runbook: "https://docs.rootlearn.com/runbooks/ai-latency"
+
+      # High memory usage
+      - alert: HighMemoryUsage
+        expr: |
+          (
+            container_memory_usage_bytes{name=~"rootlearn-backend.*"} /
+            container_spec_memory_limit_bytes{name=~"rootlearn-backend.*"}
+          ) > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          component: system
+        annotations:
+          summary: "High memory usage on backend"
+          description: "Memory usage is {{ $value | humanizePercentage }} on {{ $labels.name }}"
+          runbook: "https://docs.rootlearn.com/runbooks/high-memory"
+
+      # High CPU usage
+      - alert: HighCPUUsage
+        expr: |
+          (
+            rate(container_cpu_usage_seconds_total{name=~"rootlearn-backend.*"}[5m]) /
+            container_spec_cpu_quota{name=~"rootlearn-backend.*"} * 100000
+          ) > 80
+        for: 10m
+        labels:
+          severity: warning
+          component: system
+        annotations:
+          summary: "High CPU usage on backend"
+          description: "CPU usage is {{ $value }}% on {{ $labels.name }}"
+          runbook: "https://docs.rootlearn.com/runbooks/high-cpu"
+
+      # Database connection pool exhaustion
+      - alert: DatabaseConnectionPoolExhausted
+        expr: |
+          (
+            rootlearn_db_connections_active /
+            rootlearn_db_pool_size
+          ) > 0.90
+        for: 5m
+        labels:
+          severity: warning
+          component: database
+        annotations:
+          summary: "Database connection pool nearly exhausted"
+          description: "{{ $value | humanizePercentage }} of database connections are in use"
+          runbook: "https://docs.rootlearn.com/runbooks/db-pool"
+
+      # High session abandonment rate
+      - alert: HighSessionAbandonmentRate
+        expr: |
+          (
+            rate(rootlearn_sessions_abandoned_total[1h]) /
+            rate(rootlearn_sessions_created_total[1h])
+          ) > 0.30
+        for: 15m
+        labels:
+          severity: warning
+          component: application
+        annotations:
+          summary: "High session abandonment rate"
+          description: "{{ $value | humanizePercentage }} of sessions are being abandoned"
+          runbook: "https://docs.rootlearn.com/runbooks/high-abandonment"
+
+      # AI budget exceeded
+      - alert: AIBudgetExceeded
+        expr: |
+          sum(rate(rootlearn_ai_cost_usd_total[1h])) * 24 > 100
+        for: 10m
+        labels:
+          severity: warning
+          component: ai
+        annotations:
+          summary: "AI daily budget on track to exceed $100"
+          description: "Current rate: ${{ $value }}/day"
+          runbook: "https://docs.rootlearn.com/runbooks/ai-budget"
+
+      # Slow database queries
+      - alert: SlowDatabaseQueries
+        expr: |
+          histogram_quantile(0.95,
+            rate(rootlearn_db_query_duration_seconds_bucket[5m])
+          ) > 1
+        for: 10m
+        labels:
+          severity: warning
+          component: database
+        annotations:
+          summary: "Slow database queries detected"
+          description: "95th percentile query time is {{ $value }}s"
+          runbook: "https://docs.rootlearn.com/runbooks/slow-queries"
+
+  - name: rootlearn_info
+    interval: 5m
+    rules:
+      # Low completion rate
+      - alert: LowCompletionRate
+        expr: |
+          (
+            rate(rootlearn_sessions_completed_total[1h]) /
+            rate(rootlearn_sessions_created_total[1h])
+          ) < 0.50
+        for: 30m
+        labels:
+          severity: info
+          component: application
+        annotations:
+          summary: "Low session completion rate"
+          description: "Only {{ $value | humanizePercentage }} of sessions are completing"
+          runbook: "https://docs.rootlearn.com/runbooks/low-completion"
+
+      # Deployment detected
+      - alert: DeploymentDetected
+        expr: changes(rootlearn_api_build_info[5m]) > 0
+        labels:
+          severity: info
+          component: deployment
+        annotations:
+          summary: "New deployment detected"
+          description: "Application version has changed"
