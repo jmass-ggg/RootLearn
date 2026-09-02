@@ -402,28 +402,19 @@ async def test_complete_learning_loop(db_session: AsyncSession):
     # Start tutoring for the root gap concept
     await tutor_service.start_tutoring(session.id, root_gap_concept_id)
     
-    # Mock Socratic response - create a proper async generator class
-    class MockAsyncGenerator:
-        def __init__(self):
-            self.chunks = ["Let's think about this together. ", "Can you tell me what happens when you call a function?"]
-            self.index = 0
-        
-        def __aiter__(self):
-            return self
-        
-        async def __anext__(self):
-            if self.index >= len(self.chunks):
-                raise StopAsyncIteration
-            chunk = self.chunks[self.index]
-            self.index += 1
-            return chunk
+    # Mock Socratic response - create a proper async generator
+    async def mock_stream_text(*args, **kwargs):
+        """Async generator that yields chunks of text."""
+        chunks = ["Let's think about this together. ", "Can you tell me what happens when you call a function?"]
+        for chunk in chunks:
+            yield chunk
     
     with patch('app.services.tutor_service.get_ai_provider') as mock_ai:
         mock_provider_tutor = AsyncMock()
         mock_provider_tutor.provider_name = "test"
         mock_provider_tutor.model = "test-model"
-        # Make stream_text return our mock async generator
-        mock_provider_tutor.stream_text.return_value = MockAsyncGenerator()
+        # Make stream_text return our async generator
+        mock_provider_tutor.stream_text = mock_stream_text
         mock_ai.return_value = mock_provider_tutor
         
         response = await tutor_service.generate_response(
@@ -477,12 +468,12 @@ async def test_complete_learning_loop(db_session: AsyncSession):
         teachback_result = await teachback_service_eval.evaluate_teachback(
             session_id=session.id,
             concept_id=root_gap_concept_id,
-            explanation="The call stack is a LIFO data structure that keeps track of function calls..."
+            student_explanation="The call stack is a LIFO data structure that keeps track of function calls..."
         )
     
     assert teachback_result is not None
-    assert "coverage_score" in teachback_result
-    assert teachback_result["average_score"] >= 0.70  # Should pass threshold
+    assert teachback_result.coverage_score == 0.75
+    assert teachback_result.average_score >= 0.70  # Should pass threshold
     
     # Verify teachback attempt was recorded
     db_result = await db_session.execute(
@@ -531,10 +522,11 @@ async def test_complete_learning_loop(db_session: AsyncSession):
     
     next_concept = await learning_path_service.get_next_concept(session.id)
     
-    # Should recommend another weak prerequisite or the target
+    # Should recommend the concept we just tutored (if still needs work) or another weak prerequisite or the target
     assert next_concept is not None
-    # The next concept should be either another prerequisite or the target
-    assert next_concept.slug in ["functions", "base-case", "recursion"]
+    # After teachback, call-stack mastery = 0.49 (still < 0.7 threshold), so it should be recommended again
+    # OR another prerequisite that needs work OR the target if all prerequisites are understood
+    assert next_concept.slug in ["call-stack", "functions", "base-case", "recursion"]
     
     # ============================================================
     # STEP 9: Verify state transitions and completion logic
