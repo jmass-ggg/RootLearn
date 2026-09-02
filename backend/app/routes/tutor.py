@@ -221,6 +221,122 @@ async def send_tutor_message(
         )
 
 
+@router.post(
+    "/sessions/{session_id}/tutor/request-teachback",
+    status_code=status.HTTP_200_OK,
+    responses={
+        200: {"description": "Successfully transitioned to teach-back state"},
+        400: {"description": "Invalid request", "model": ErrorResponse},
+        404: {"description": "Session not found", "model": ErrorResponse},
+        403: {"description": "Access forbidden", "model": ErrorResponse},
+        500: {"description": "Internal server error", "model": ErrorResponse},
+    },
+)
+async def request_teachback(
+    session_id: uuid.UUID,
+    user_id: uuid.UUID,
+    session_service: SessionService = Depends(get_session_service),
+):
+    """Request transition from tutoring to teach-back state.
+    
+    This endpoint is called when the learner is ready to explain
+    the concept in their own words. It transitions the session
+    from "tutoring" to "teachback" status.
+    
+    Args:
+        session_id: UUID of the session
+        user_id: UUID of the requesting user (query parameter)
+    
+    Requirements: 15.1, 10.1
+    """
+    try:
+        logger.info(
+            "request_teachback",
+            session_id=str(session_id),
+            user_id=str(user_id),
+        )
+        
+        # Verify session ownership
+        try:
+            session = await session_service.get_session(
+                session_id=session_id,
+                user_id=user_id,
+            )
+        except (SessionNotFoundError, SessionOwnershipError):
+            logger.warning(
+                "request_teachback_unauthorized",
+                session_id=str(session_id),
+                user_id=str(user_id),
+            )
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=ErrorResponse.create(
+                    code="session_not_found",
+                    message="Session not found",
+                    request_id=get_request_id(),
+                ),
+            )
+        
+        # Verify session is in tutoring status
+        if session.status != "tutoring":
+            logger.warning(
+                "request_teachback_wrong_status",
+                session_id=str(session_id),
+                user_id=str(user_id),
+                status=session.status,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=ErrorResponse.create(
+                    code="invalid_session_status",
+                    message=f"Session status must be 'tutoring', currently: {session.status}",
+                    request_id=get_request_id(),
+                    details={"current_status": session.status},
+                ),
+            )
+        
+        # Transition to teachback state
+        from app.services.state_machine_service import StateMachineService
+        
+        state_machine = StateMachineService(session_service.db)
+        updated_session = await state_machine.transition_to_teachback(session_id)
+        await session_service.db.commit()
+        
+        logger.info(
+            "request_teachback_success",
+            session_id=str(session_id),
+            user_id=str(user_id),
+            new_status=updated_session.status,
+        )
+        
+        return {
+            "session_id": str(session_id),
+            "status": updated_session.status,
+            "message": "Session transitioned to teach-back state",
+        }
+        
+    except HTTPException:
+        raise
+        
+    except Exception as e:
+        logger.error(
+            "request_teachback_error",
+            session_id=str(session_id),
+            user_id=str(user_id),
+            error=str(e),
+            error_type=type(e).__name__,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=ErrorResponse.create(
+                code="teachback_request_failed",
+                message="Failed to request teach-back",
+                request_id=get_request_id(),
+                details={"error": str(e)},
+            ),
+        )
+
+
 @router.get(
     "/sessions/{session_id}/tutor/messages",
     response_model=TutorMessagesResponse,

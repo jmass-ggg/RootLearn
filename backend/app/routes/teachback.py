@@ -189,6 +189,22 @@ async def submit_teachback(
         )
         concept = concept_result.scalar_one()
         
+        # Trigger state transition after evaluation
+        from app.services.state_machine_service import StateMachineService
+        
+        state_machine = StateMachineService(teachback_service.db)
+        
+        # Transition based on teach-back result
+        teachback_passed = result.average_score >= 0.70
+        gap_resolved = result.average_score >= 0.70  # Simplified - gap is resolved if teachback passed
+        
+        await state_machine.transition_after_teachback(
+            session_id=session_id,
+            teachback_passed=teachback_passed,
+            gap_resolved=gap_resolved,
+        )
+        await teachback_service.db.commit()
+        
         logger.info(
             "submit_teachback_success",
             session_id=str(session_id),

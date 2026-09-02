@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import get_settings
 from app.logging_config import configure_logging, get_logger
 from app.middleware import CorrelationIdMiddleware
-from app.routes import diagnosis, graph, health, root_gap, sessions, teachback, tutor
+from app.routes import diagnosis, graph, health, mastery, root_gap, sessions, teachback, tutor
 
 settings = get_settings()
 logger = get_logger(__name__)
@@ -52,6 +52,7 @@ app.include_router(diagnosis.router, prefix=settings.api_v1_prefix, tags=["diagn
 app.include_router(root_gap.router, prefix=settings.api_v1_prefix, tags=["root-gap"])
 app.include_router(tutor.router, prefix=settings.api_v1_prefix, tags=["tutor"])
 app.include_router(teachback.router, prefix=settings.api_v1_prefix, tags=["teachback"])
+app.include_router(mastery.router, prefix=settings.api_v1_prefix, tags=["mastery"])
 
 
 @app.get("/")
