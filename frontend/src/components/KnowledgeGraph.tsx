@@ -250,6 +250,15 @@ const KnowledgeGraphInternal = forwardRef<GraphControlsRef, KnowledgeGraphIntern
           fitView
           minZoom={0.1}
           maxZoom={2}
+          panOnDrag
+          panOnScroll
+          zoomOnPinch
+          zoomOnDoubleClick
+          // Better mobile/touch support
+          nodesDraggable
+          nodesConnectable={false}
+          elementsSelectable
+          selectNodesOnDrag={false}
         >
           <Background />
           <Controls />
@@ -261,6 +270,7 @@ const KnowledgeGraphInternal = forwardRef<GraphControlsRef, KnowledgeGraphIntern
             nodeStrokeWidth={3}
             zoomable
             pannable
+            className="hidden sm:block"
           />
         </ReactFlow>
       </div>

@@ -26,6 +26,7 @@ export const StateDisplay: React.FC<StateDisplayProps> = ({
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
             viewBox="0 0 24 24"
+            aria-hidden="true"
           >
             <circle
               className="opacity-25"
@@ -50,6 +51,7 @@ export const StateDisplay: React.FC<StateDisplayProps> = ({
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
+            aria-hidden="true"
           >
             <path
               strokeLinecap="round"
@@ -67,6 +69,7 @@ export const StateDisplay: React.FC<StateDisplayProps> = ({
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
+            aria-hidden="true"
           >
             <path
               strokeLinecap="round"
@@ -79,8 +82,16 @@ export const StateDisplay: React.FC<StateDisplayProps> = ({
     }
   };
 
+  // Determine aria-live politeness based on variant
+  const ariaLive = variant === 'error' ? 'assertive' : 'polite';
+
   return (
-    <div className="flex flex-col items-center justify-center text-center py-12 px-6">
+    <div 
+      className="flex flex-col items-center justify-center text-center py-12 px-6"
+      role={variant === 'error' ? 'alert' : 'status'}
+      aria-live={ariaLive}
+      aria-atomic="true"
+    >
       <div className="mb-4">
         {renderIcon()}
       </div>
@@ -96,6 +107,7 @@ export const StateDisplay: React.FC<StateDisplayProps> = ({
         <Button
           variant="primary"
           onClick={action.onClick}
+          aria-label={action.label}
         >
           {action.label}
         </Button>

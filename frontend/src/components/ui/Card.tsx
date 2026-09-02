@@ -6,6 +6,7 @@ export interface CardProps {
   padding?: keyof typeof spacing;
   className?: string;
   children: React.ReactNode;
+  role?: string;
 }
 
 export const Card: React.FC<CardProps> = ({
@@ -13,6 +14,7 @@ export const Card: React.FC<CardProps> = ({
   padding = 'lg',
   className = '',
   children,
+  role,
 }) => {
   const baseStyles = 'rounded-xl';
   
@@ -35,7 +37,7 @@ export const Card: React.FC<CardProps> = ({
   const paddingClass = paddingMap[padding];
   
   return (
-    <div className={`${baseStyles} ${variantStyles[variant]} ${paddingClass} ${className}`}>
+    <div className={`${baseStyles} ${variantStyles[variant]} ${paddingClass} ${className}`} role={role}>
       {children}
     </div>
   );

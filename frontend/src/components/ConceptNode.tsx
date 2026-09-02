@@ -39,14 +39,15 @@ function ConceptNode({ data }: { data: ConceptNodeData }) {
   return (
     <div
       className={`
-        px-4 py-3 rounded-2xl border-2 shadow-md text-center
+        px-3 py-2 sm:px-4 sm:py-3 rounded-xl sm:rounded-2xl border-2 shadow-md text-center
         transition-all duration-200
         hover:shadow-lg hover:scale-105
+        touch-manipulation
         ${bgClass} ${borderClass} ${ringClass}
       `}
       style={{
-        minWidth: '160px',
-        maxWidth: '200px',
+        minWidth: '140px',
+        maxWidth: '180px',
       }}
     >
       <Handle
@@ -58,21 +59,21 @@ function ConceptNode({ data }: { data: ConceptNodeData }) {
 
       {/* Badge for target or root gap */}
       {isTarget && (
-        <div className="mb-2 text-xs font-bold uppercase tracking-wide text-[#1463FF]">
+        <div className="mb-1 sm:mb-2 text-[10px] sm:text-xs font-bold uppercase tracking-wide text-[#1463FF]">
           Target
         </div>
       )}
       {isRootGap && (
-        <div className="mb-2 text-xs font-bold uppercase tracking-wide text-[#839300]">
+        <div className="mb-1 sm:mb-2 text-[10px] sm:text-xs font-bold uppercase tracking-wide text-[#839300]">
           Root Gap
         </div>
       )}
 
       {/* Concept name with lock icon if locked */}
-      <div className="mb-3 break-words text-sm font-semibold text-[#10213d] flex items-center justify-center gap-1">
+      <div className="mb-2 sm:mb-3 break-words text-xs sm:text-sm font-semibold text-[#10213d] flex items-center justify-center gap-1">
         {isLocked && (
           <svg 
-            className="w-4 h-4 flex-shrink-0" 
+            className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" 
             fill="none" 
             stroke="currentColor" 
             viewBox="0 0 24 24"
@@ -85,7 +86,7 @@ function ConceptNode({ data }: { data: ConceptNodeData }) {
             />
           </svg>
         )}
-        <span>{concept.name}</span>
+        <span className="leading-tight">{concept.name}</span>
       </div>
 
       {/* Mastery Bar */}
@@ -99,9 +100,9 @@ function ConceptNode({ data }: { data: ConceptNodeData }) {
             }}
           />
         </div>
-        <div className="flex items-center justify-between text-xs text-gray-600">
-          <span className="capitalize">{concept.status}</span>
-          <span className="font-medium">{masteryPercentage}%</span>
+        <div className="flex items-center justify-between text-[10px] sm:text-xs text-gray-600">
+          <span className="capitalize truncate">{concept.status}</span>
+          <span className="font-medium flex-shrink-0 ml-1">{masteryPercentage}%</span>
         </div>
       </div>
 

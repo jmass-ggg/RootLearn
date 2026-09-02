@@ -21,13 +21,13 @@ export const Button: React.FC<ButtonProps> = ({
   children,
   className = '',
 }) => {
-  const baseStyles = 'inline-flex items-center justify-center font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed';
+  const baseStyles = 'inline-flex items-center justify-center font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-offset-2';
   
   const variantStyles = {
-    primary: 'bg-brand-blue text-text-inverse hover:bg-blue-600 focus:ring-brand-blue',
-    secondary: 'bg-bg-card text-brand-blue border-2 border-brand-blue hover:bg-blue-50 focus:ring-brand-blue',
-    ghost: 'bg-transparent text-brand-blue hover:bg-blue-50 focus:ring-brand-blue',
-    lime: 'bg-brand-lime text-text-heading hover:bg-lime-400 focus:ring-brand-lime',
+    primary: 'bg-brand-blue text-text-inverse hover:bg-blue-600 focus:ring-brand-blue focus-visible:ring-brand-blue',
+    secondary: 'bg-bg-card text-brand-blue border-2 border-brand-blue hover:bg-blue-50 focus:ring-brand-blue focus-visible:ring-brand-blue',
+    ghost: 'bg-transparent text-brand-blue hover:bg-blue-50 focus:ring-brand-blue focus-visible:ring-brand-blue',
+    lime: 'bg-brand-lime text-text-heading hover:bg-lime-400 focus:ring-brand-lime focus-visible:ring-brand-lime',
   };
   
   const sizeStyles = {
@@ -43,6 +43,7 @@ export const Button: React.FC<ButtonProps> = ({
       type={type}
       onClick={onClick}
       disabled={disabled}
+      aria-disabled={disabled}
       className={`${baseStyles} ${variantStyles[variant]} ${sizeStyles[size]} ${className}`}
     >
       {isLoading && (
@@ -51,6 +52,7 @@ export const Button: React.FC<ButtonProps> = ({
           xmlns="http://www.w3.org/2000/svg"
           fill="none"
           viewBox="0 0 24 24"
+          aria-hidden="true"
         >
           <circle
             className="opacity-25"

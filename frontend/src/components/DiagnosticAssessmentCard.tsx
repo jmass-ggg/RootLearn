@@ -125,7 +125,7 @@ export default function DiagnosticAssessmentCard({
                   id="answer"
                   value={answer}
                   onChange={(e) => setAnswer(e.target.value)}
-                  className="w-full resize-none rounded-lg border border-gray-300 bg-white px-4 py-3 text-base transition-colors focus:border-brand-blue focus:outline-none focus:ring-2 focus:ring-brand-blue/20"
+                  className="w-full resize-none rounded-lg border border-gray-300 bg-white px-4 py-3 text-base transition-colors focus:border-brand-blue focus:outline-none focus:ring-2 focus:ring-brand-blue/20 focus-visible:ring-2 focus-visible:ring-brand-blue"
                   rows={question.question_type === 'code' ? 10 : 5}
                   placeholder={
                     question.question_type === 'code'
@@ -135,6 +135,7 @@ export default function DiagnosticAssessmentCard({
                   disabled={isSubmitting}
                   required
                   autoFocus
+                  aria-required="true"
                 />
               ) : (
                 <input
@@ -142,11 +143,12 @@ export default function DiagnosticAssessmentCard({
                   type="text"
                   value={answer}
                   onChange={(e) => setAnswer(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-base transition-colors focus:border-brand-blue focus:outline-none focus:ring-2 focus:ring-brand-blue/20"
+                  className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-base transition-colors focus:border-brand-blue focus:outline-none focus:ring-2 focus:ring-brand-blue/20 focus-visible:ring-2 focus-visible:ring-brand-blue"
                   placeholder="Enter your answer here..."
                   disabled={isSubmitting}
                   required
                   autoFocus
+                  aria-required="true"
                 />
               )}
             </div>

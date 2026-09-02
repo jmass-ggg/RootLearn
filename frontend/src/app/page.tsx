@@ -42,6 +42,7 @@ export default function Home() {
             size="sm"
             onClick={scrollToStart}
             className="rounded-xl"
+            aria-label="Try RootLearn - Start learning"
           >
             Try RootLearn
           </Button>
@@ -50,8 +51,8 @@ export default function Home() {
         {/* Hero Content */}
         <div className="mx-auto flex max-w-5xl flex-col items-center px-6 pb-44 pt-32 text-center sm:pt-36">
           {/* Hero Badge */}
-          <span className="mb-7 rounded-full border border-white/20 bg-white/5 px-4 py-2 text-sm text-white/70">
-            <span className="mr-2 text-brand-lime">✣</span>
+          <span className="mb-7 rounded-full border border-white/20 bg-white/5 px-4 py-2 text-sm text-white/70" role="status">
+            <span className="mr-2 text-brand-lime" aria-hidden="true">✣</span>
             AI-powered knowledge debugger
           </span>
 
@@ -72,8 +73,9 @@ export default function Home() {
               size="lg"
               onClick={scrollToStart}
               className="shadow-lg shadow-black/10 transition hover:-translate-y-0.5"
+              aria-label="Start learning with RootLearn"
             >
-              Start learning <span className="ml-2">→</span>
+              Start learning <span aria-hidden="true" className="ml-2">→</span>
             </Button>
             <button 
               type="button" 
@@ -81,15 +83,16 @@ export default function Home() {
                 setPrompt("I understand loops, but recursion still confuses me."); 
                 scrollToStart(); 
               }} 
-              className="rounded-xl px-5 py-3.5 font-semibold text-white/90 transition hover:bg-white/5"
+              className="rounded-xl px-5 py-3.5 font-semibold text-white/90 transition hover:bg-white/5 focus:outline-none focus:ring-2 focus:ring-white/50"
+              aria-label="Explore a demo with recursion example"
             >
-              <span className="mr-2">▷</span>Explore a demo
+              <span aria-hidden="true" className="mr-2">▷</span>Explore a demo
             </button>
           </div>
 
           {/* No Account Required Reassurance */}
           <p className="mt-6 text-sm text-white/50">
-            <span className="mr-2 text-brand-lime">✓</span>No account required
+            <span className="mr-2 text-brand-lime" aria-hidden="true">✓</span>No account required
           </p>
         </div>
 
@@ -108,15 +111,15 @@ export default function Home() {
         </div>
 
         {/* Three Steps Cards */}
-        <div id="features" className="mt-14 grid gap-6 md:grid-cols-3">
+        <div id="features" className="mt-14 grid gap-6 md:grid-cols-3" role="list">
           {[
             ["01", "□", "Describe what you don't understand", "Tell RootLearn the topic that confuses you, in your own words. No prior structure needed."],
             ["02", "⌘", "Discover your root knowledge gap", "We build a prerequisite map and diagnose the foundational concept holding you back."],
             ["03", "▤", "Learn through questions and teach-back", "Socratic tutoring guides you with questions, then verifies mastery through teach-back."],
           ].map(([number, icon, title, text]) => (
-            <Card key={number} variant="elevated" padding="xl" className="relative min-h-[278px]">
-              <span className="absolute right-7 top-7 text-3xl font-bold text-[#e5eaf2]">{number}</span>
-              <span className="mb-6 flex h-12 w-12 items-center justify-center rounded-xl border border-[#dce5f2] bg-[#f7f9fc] text-xl text-brand-blue">
+            <Card key={number} variant="elevated" padding="xl" className="relative min-h-[278px]" role="listitem">
+              <span className="absolute right-7 top-7 text-3xl font-bold text-[#e5eaf2]" aria-hidden="true">{number}</span>
+              <span className="mb-6 flex h-12 w-12 items-center justify-center rounded-xl border border-[#dce5f2] bg-[#f7f9fc] text-xl text-brand-blue" aria-hidden="true">
                 {icon}
               </span>
               <h3 className="max-w-[250px] text-xl font-bold leading-7">{title}</h3>
@@ -141,10 +144,13 @@ export default function Home() {
                 value={prompt} 
                 onChange={(event) => setPrompt(event.target.value)} 
                 placeholder="I understand loops, but recursion still confuses me..." 
-                className="min-h-14 flex-1 rounded-xl border border-transparent bg-bg-workspace px-4 placeholder:text-text-muted focus:border-brand-blue focus:bg-bg-card focus:outline-none" 
+                className="min-h-14 flex-1 rounded-xl border border-transparent bg-bg-workspace px-4 placeholder:text-text-muted focus:border-brand-blue focus:bg-bg-card focus:outline-none focus:ring-2 focus:ring-brand-blue/20" 
                 disabled={createSessionMutation.isPending} 
                 maxLength={2000} 
                 required 
+                aria-required="true"
+                aria-invalid={createSessionMutation.isError ? 'true' : 'false'}
+                aria-describedby={createSessionMutation.isError ? 'session-error' : undefined}
               />
               <Button
                 type="submit"
@@ -153,19 +159,21 @@ export default function Home() {
                 isDisabled={!prompt.trim() || createSessionMutation.isPending}
                 isLoading={createSessionMutation.isPending}
                 className="min-h-14 rounded-xl"
+                aria-label={createSessionMutation.isPending ? "Starting session..." : "Start learning session"}
               >
                 {createSessionMutation.isPending ? "Starting…" : "Start learning →"}
               </Button>
             </div>
 
             {/* Topic Suggestions */}
-            <div className="mt-4 flex flex-wrap justify-center gap-2">
+            <div className="mt-4 flex flex-wrap justify-center gap-2" role="group" aria-label="Suggested topics">
               {suggestedTopics.map((topic) => (
                 <button 
                   key={topic} 
                   type="button" 
                   onClick={() => setPrompt(topic)} 
-                  className="rounded-full bg-[#edf3ff] px-3 py-1.5 text-sm font-medium text-brand-blue hover:bg-[#dfeaff] transition"
+                  className="rounded-full bg-[#edf3ff] px-3 py-1.5 text-sm font-medium text-brand-blue hover:bg-[#dfeaff] transition focus:outline-none focus:ring-2 focus:ring-brand-blue focus:ring-offset-2"
+                  aria-label={`Use suggested topic: ${topic}`}
                 >
                   {topic}
                 </button>
@@ -174,7 +182,7 @@ export default function Home() {
 
             {/* Error State */}
             {createSessionMutation.isError && (
-              <div role="alert" className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+              <div id="session-error" role="alert" aria-live="assertive" className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
                 <span>
                   {createSessionMutation.error instanceof Error 
                     ? createSessionMutation.error.message 
@@ -182,8 +190,9 @@ export default function Home() {
                 </span>
                 <button 
                   type="button" 
-                  className="font-semibold underline" 
+                  className="font-semibold underline focus:outline-none focus:ring-2 focus:ring-red-500" 
                   onClick={() => createSessionMutation.mutate(prompt.trim())}
+                  aria-label="Retry creating session"
                 >
                   Retry
                 </button>
@@ -195,7 +204,7 @@ export default function Home() {
 
       {/* Footer */}
       <footer id="about" className="border-t border-border-default bg-bg-card px-6 py-8 text-center text-sm text-text-body">
-        RootLearn turns confusion into a clear, testable learning path.
+        <p>RootLearn turns confusion into a clear, testable learning path.</p>
       </footer>
     </main>
   );

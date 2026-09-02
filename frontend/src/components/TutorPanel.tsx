@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { TutorMessage, TutorMessageResponse } from '@/types/tutor';
+import { Button } from './ui/Button';
 
 interface TutorPanelProps {
   sessionId: string;
@@ -21,7 +22,14 @@ interface TutorPanelProps {
 /**
  * TutorPanel component
  * Displays Socratic tutoring conversation with progressive hint levels
- * Requirements: 9.2, 9.6
+ * Requirements: 8.5, 8.6, 8.7
+ * 
+ * Features:
+ * - Chronological message history
+ * - Differentiated user vs AI message styling
+ * - Auto-scroll to latest message
+ * - Hint level display in UI
+ * - Error recovery without losing history
  */
 export default function TutorPanel({
   sessionId,
@@ -37,9 +45,12 @@ export default function TutorPanel({
   const [input, setInput] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Auto-scroll to bottom when new messages arrive
+  // Requirements: 8.6 - auto-scroll behavior
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -53,12 +64,17 @@ export default function TutorPanel({
 
     const messageToSend = input.trim();
     setInput('');
+    setSendError(null);
     setIsSending(true);
 
     try {
       await onSendMessage(messageToSend);
+      // Focus input after successful send for quick follow-up
+      inputRef.current?.focus();
     } catch (error) {
+      // Requirements: 8.7 - error recovery without losing history
       console.error('Failed to send message:', error);
+      setSendError('Failed to send message. Please try again.');
       // Restore input on error
       setInput(messageToSend);
     } finally {
@@ -72,26 +88,14 @@ export default function TutorPanel({
       await onExplainBack();
     } catch (error) {
       console.error('Failed to transition to teach-back:', error);
+      setSendError('Failed to transition to teach-back. Please try again.');
     } finally {
       setIsTransitioning(false);
     }
   };
 
-  const getMasteryColor = (score: number): string => {
-    if (score >= 0.85) return 'text-green-600';
-    if (score >= 0.70) return 'text-lime-600';
-    if (score >= 0.40) return 'text-yellow-600';
-    return 'text-red-600';
-  };
-
-  const getMasteryBgColor = (score: number): string => {
-    if (score >= 0.85) return 'bg-green-500';
-    if (score >= 0.70) return 'bg-lime-500';
-    if (score >= 0.40) return 'bg-yellow-500';
-    return 'bg-red-500';
-  };
-
   const getHintLevelLabel = (level: number | null): string => {
+    // Requirements: 8.6 - hint levels visible in UI
     if (level === null) return '';
     const labels = ['Question', 'Small Hint', 'Stronger Hint', 'Example', 'Explanation'];
     return labels[level] || '';
@@ -100,22 +104,28 @@ export default function TutorPanel({
   // Loading State
   if (isLoading && messages.length === 0) {
     return (
-      <div className="flex items-center justify-center h-64" role="status" aria-live="polite">
+      <div className="flex items-center justify-center h-96" role="status" aria-live="polite">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-3" aria-hidden="true"></div>
-          <p className="text-gray-600 text-sm">Loading tutoring session...</p>
+          <div
+            className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-blue mx-auto mb-3"
+            aria-hidden="true"
+          ></div>
+          <p className="text-text-body text-sm">Loading tutoring session...</p>
           <span className="sr-only">Loading tutoring session, please wait</span>
         </div>
       </div>
     );
   }
 
-  // Empty State
+  // Empty State - no active concept
   if (!currentConcept) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 text-gray-500 p-6" role="status">
+      <div
+        className="flex flex-col items-center justify-center h-96 text-text-muted p-6"
+        role="status"
+      >
         <svg
-          className="w-16 h-16 text-gray-400 mb-4"
+          className="w-16 h-16 text-mastery-unknown mb-4"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -128,54 +138,39 @@ export default function TutorPanel({
             d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
           />
         </svg>
-        <p className="text-center">No tutoring session active</p>
-        <p className="text-sm text-gray-400 mt-2">Tutoring will begin after diagnosis</p>
+        <p className="text-center font-medium">No tutoring session active</p>
+        <p className="text-sm text-text-muted mt-2">Tutoring will begin after diagnosis</p>
       </div>
     );
   }
 
   return (
-    <div className="flex h-full min-h-[760px] flex-col bg-white">
-      {/* Header with concept name and mastery bar - Responsive */}
-      <div className="border-b border-[#e1e7ef] p-6 sm:p-8">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-bold uppercase tracking-[.1em] text-[#718096]">Current objective</p>
-            <h3 className="mt-2 truncate text-xl font-semibold text-[#10213d]"><span className="mr-2 text-[#1463ff]">◎</span>Understand {currentConcept.name}</h3>
-          </div>
-          <div className="text-left sm:text-right flex-shrink-0">
-            <div className={`text-xl sm:text-2xl font-bold ${getMasteryColor(masteryScore)}`} aria-label={`Mastery: ${Math.round(masteryScore * 100)} percent`}>
-              {Math.round(masteryScore * 100)}%
-            </div>
-            <div className="text-xs text-gray-500">
-              Confidence: {Math.round(confidenceScore * 100)}%
-            </div>
-          </div>
-        </div>
-
-        {/* Mastery progress bar */}
-        <div className="h-2 w-full rounded-full bg-[#e7ecf2]" role="progressbar" aria-valuenow={masteryScore * 100} aria-valuemin={0} aria-valuemax={100} aria-label="Mastery progress">
-          <div
-            className={`h-2 rounded-full transition-all duration-500 ${getMasteryBgColor(
-              masteryScore
-            )}`}
-            style={{ width: `${masteryScore * 100}%` }}
-          />
-        </div>
-      </div>
-
-      {/* Chat messages - Responsive */}
-      <div 
-        className="min-h-[430px] flex-1 space-y-4 overflow-y-auto bg-[#fbfcfe] p-5 sm:p-8"
+    <div className="flex h-full min-h-[760px] flex-col">
+      {/* Chat messages area - Requirements: 8.5, 8.6, 8.10, 8.11 */}
+      <div
+        className="min-h-[500px] flex-1 space-y-4 overflow-y-auto bg-bg-workspace p-5 sm:p-8 overscroll-contain"
         role="log"
         aria-live="polite"
         aria-label="Tutoring conversation"
+        style={{
+          // Requirements: 8.11 - ensure scrolling works on mobile touch devices
+          WebkitOverflowScrolling: 'touch',
+        }}
       >
         {messages.length === 0 ? (
-          <div className="flex h-full items-center justify-center text-[#8b96a8]">
-            <div className="max-w-md text-center"><span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#eaf1ff] text-xl text-[#1463ff]">○</span><p className="mt-4 px-4 text-base">Start by sharing how you currently think about {currentConcept.name}. The tutor will guide you with questions.</p></div>
+          <div className="flex h-full items-center justify-center text-text-body">
+            <div className="max-w-md text-center">
+              <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-blue-50 text-xl text-brand-blue">
+                ○
+              </span>
+              <p className="mt-4 px-4 text-base">
+                Start by sharing how you currently think about {currentConcept.name}. The
+                tutor will guide you with questions.
+              </p>
+            </div>
           </div>
         ) : (
+          // Requirements: 8.5 - display message history in chronological order
           messages.map((message) => (
             <div
               key={message.id}
@@ -185,13 +180,15 @@ export default function TutorPanel({
             >
               <div
                 className={`max-w-[85%] sm:max-w-[80%] rounded-lg px-3 sm:px-4 py-2 sm:py-3 ${
+                  // Requirements: 8.5 - style user messages vs AI messages differently
                   message.role === 'user'
-                    ? 'bg-[#1463ff] text-white'
-                    : 'border border-[#dfe6ef] bg-white text-[#10213d]'
+                    ? 'bg-brand-blue text-white'
+                    : 'border border-border bg-white text-text-heading'
                 }`}
                 role="article"
                 aria-label={`${message.role === 'user' ? 'Your message' : 'Tutor message'}`}
               >
+                {/* Requirements: 8.6 - preserve hint levels in UI */}
                 {message.role === 'assistant' && message.hint_level !== null && (
                   <div className="text-xs font-medium mb-1 opacity-75">
                     {getHintLevelLabel(message.hint_level)}
@@ -202,7 +199,7 @@ export default function TutorPanel({
                 </div>
                 <div
                   className={`text-xs mt-1 ${
-                    message.role === 'user' ? 'text-blue-100' : 'text-gray-500'
+                    message.role === 'user' ? 'text-blue-100' : 'text-text-muted'
                   }`}
                 >
                   {new Date(message.created_at).toLocaleTimeString()}
@@ -211,71 +208,74 @@ export default function TutorPanel({
             </div>
           ))
         )}
-        <div ref={messagesEndRef} />
+        <div ref={messagesEndRef} aria-hidden="true" />
       </div>
 
-      {/* Input area - Responsive */}
-      <div className="space-y-3 border-t border-[#e1e7ef] p-5 sm:p-8">
+      {/* Input area - Requirements: 8.10, 8.11, 14.6 */}
+      <div className="space-y-3 border-t border-border bg-white p-5 sm:p-8 sticky bottom-0">
+        {/* Error message - Requirements: 8.7 */}
+        {sendError && (
+          <div
+            className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-800"
+            role="alert"
+          >
+            {sendError}
+          </div>
+        )}
+
+        {/* Prompt suggestions - Requirements: 8.8, 8.9 */}
         <div className="flex flex-wrap gap-2">
-          {["I need a hint", "Show another example", "Let me reason it out"].map((suggestion) => <button key={suggestion} type="button" onClick={() => setInput(suggestion)} className="rounded-full border border-[#dce5ef] bg-white px-3 py-1.5 text-sm text-[#536178] hover:border-[#1463ff] hover:text-[#1463ff]">{suggestion}</button>)}
+          {[
+            'Can you give me a hint?',
+            'Show me another example',
+            "I'm still confused",
+          ].map((suggestion) => (
+            <button
+              key={suggestion}
+              type="button"
+              onClick={() => {
+                // Requirements: 8.9 - populate composer WITHOUT auto-submitting
+                setInput(suggestion);
+                inputRef.current?.focus();
+              }}
+              // Requirements: 14.6 - keyboard accessible
+              className="rounded-full border border-border bg-white px-3 py-1.5 text-sm text-text-body hover:border-brand-blue hover:text-brand-blue hover:bg-blue-50 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-blue focus:ring-opacity-50"
+              disabled={isSending}
+              tabIndex={0}
+            >
+              {suggestion}
+            </button>
+          ))}
         </div>
-        <form onSubmit={handleSubmit} className="flex gap-2 rounded-2xl border border-[#dce5ef] bg-white p-2" aria-label="Send tutor message">
+
+        {/* Message composer - Requirements: 8.10 - keyboard accessible */}
+        <form
+          onSubmit={handleSubmit}
+          className="flex gap-2 rounded-2xl border border-border bg-white p-2 focus-within:ring-2 focus-within:ring-brand-blue focus-within:ring-opacity-20"
+          aria-label="Send tutor message"
+        >
           <input
+            ref={inputRef}
             type="text"
             name="tutor-message"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Type your response or question..."
-            className="min-w-0 flex-1 border-0 bg-transparent px-3 py-2 text-sm outline-none sm:text-base"
+            // Requirements: 8.11 - keep input visible on mobile (prevent keyboard from hiding it)
+            className="min-w-0 flex-1 border-0 bg-transparent px-3 py-2 text-sm outline-none sm:text-base placeholder:text-text-muted"
             disabled={isSending}
             aria-label="Your message"
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="sentences"
           />
           <button
             type="submit"
             disabled={isSending || !input.trim()}
-            className="h-11 w-11 flex-shrink-0 rounded-xl bg-[#1463ff] font-medium text-white transition hover:bg-[#0754e8] disabled:cursor-not-allowed disabled:bg-[#aebbd0]"
+            className="h-11 w-11 flex-shrink-0 rounded-xl bg-brand-blue font-medium text-white transition hover:bg-blue-600 disabled:cursor-not-allowed disabled:bg-mastery-unknown disabled:opacity-50 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-brand-blue focus:ring-offset-2"
             aria-label={isSending ? 'Sending message, please wait' : 'Send message'}
           >
             {isSending ? (
-              <span className="flex items-center">
-                <svg
-                  className="animate-spin h-5 w-5"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  aria-hidden="true"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  ></circle>
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  ></path>
-                </svg>
-                <span className="sr-only">Sending</span>
-              </span>
-            ) : (
-              '➤'
-            )}
-          </button>
-        </form>
-
-        {/* Explain it back button - Responsive */}
-        <button
-          onClick={handleExplainBack}
-          disabled={isSending || isTransitioning}
-          className="w-full rounded-xl bg-[#062b45] px-4 py-3 font-semibold text-white transition hover:bg-[#0b3b5d] disabled:cursor-not-allowed disabled:bg-[#aebbd0] sm:w-auto"
-          aria-label="Request to explain concept back"
-        >
-          {isTransitioning ? (
-            <span className="flex items-center justify-center gap-2">
               <svg
                 className="animate-spin h-5 w-5"
                 xmlns="http://www.w3.org/2000/svg"
@@ -297,19 +297,33 @@ export default function TutorPanel({
                   d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                 ></path>
               </svg>
-              Transitioning...
-            </span>
-          ) : (
+            ) : (
+              '➤'
+            )}
+          </button>
+        </form>
+
+        {/* Explain it back button - Requirements: 8.12 */}
+        <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center pt-2 border-t border-border">
+          <Button
+            variant="primary"
+            size="lg"
+            onClick={handleExplainBack}
+            isLoading={isTransitioning}
+            isDisabled={isSending || isTransitioning}
+            className="w-full sm:w-auto bg-brand-navy hover:bg-opacity-90"
+          >
             <span className="flex items-center justify-center gap-2">
               <span aria-hidden="true">✓</span>
               <span>I&apos;m ready to explain it back</span>
             </span>
-          )}
-        </button>
-        <p className="text-xs text-center text-gray-500 px-2">
-          When you feel you understand, explain the concept in your own words
-        </p>
+          </Button>
+          <p className="text-xs text-center sm:text-left text-text-muted px-2 sm:flex-1">
+            When you feel you understand, explain the concept in your own words
+          </p>
+        </div>
       </div>
     </div>
   );
 }
+

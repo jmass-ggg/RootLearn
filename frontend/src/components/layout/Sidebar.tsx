@@ -192,9 +192,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
               key={section.id}
               onClick={() => handleSectionClick(section)}
               disabled={!accessible}
+              aria-disabled={!accessible}
+              aria-current={active ? 'page' : undefined}
               className={`
                 w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
                 transition-colors
+                focus:outline-none focus:ring-2 focus:ring-brand-blue focus:ring-offset-2
+                focus-visible:ring-2 focus-visible:ring-brand-blue
                 ${active 
                   ? 'bg-brand-blue text-text-inverse' 
                   : accessible

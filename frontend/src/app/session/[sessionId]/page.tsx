@@ -11,7 +11,7 @@ import RootGapCard from '@/components/RootGapCard';
 import TutorPanel from '@/components/TutorPanel';
 import TeachBackPanel from '@/components/TeachBackPanel';
 import AppShell, { WorkspaceSection } from '@/components/AppShell';
-import type { PrerequisiteGraph, RootGapResult } from '@/types';
+import type { PrerequisiteGraph, RootGapResult, MasteryEvent } from '@/types';
 import { useEffect, useState } from 'react';
 
 export default function SessionPage() {
@@ -112,6 +112,16 @@ export default function SessionPage() {
     queryFn: () => api.tutor.getMessages(sessionId, userId!),
     enabled: !!userId && session?.status === 'tutoring',
     refetchInterval: 5000,
+  });
+
+  // Fetch mastery events for completed sessions
+  const { 
+    data: masteryEvents,
+    isLoading: masteryLoading,
+  } = useQuery({
+    queryKey: ['mastery-events', sessionId, userId],
+    queryFn: () => api.mastery.getSessionEvents(sessionId, userId!),
+    enabled: !!userId && session?.status === 'completed',
   });
 
   // State for evaluation
@@ -245,12 +255,32 @@ export default function SessionPage() {
 
   if (!userId) {
     return (
-      <ErrorDisplay 
-        title="Missing User ID"
-        message="User ID is required to view this session."
-        onRetry={() => router.push('/')}
-        retryLabel="Go Home"
-      />
+      <div className="min-h-screen flex items-center justify-center p-8 bg-[#f4f7fb]">
+        <div className="soft-card max-w-md p-10 text-center">
+          <div className="mb-6">
+            <svg className="w-16 h-16 text-[#e8a12d] mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+          </div>
+          <h2 className="text-2xl font-bold text-[#10213d] mb-2">Missing User ID</h2>
+          <p className="text-[#718096] mb-4">
+            User ID is required to view this session. This usually means you accessed this page directly without going through the proper flow.
+          </p>
+          
+          <div className="rounded-xl bg-[#f8fafc] border border-[#dfe6ef] p-4 mb-6">
+            <p className="text-sm text-[#718096]">
+              Please start a new session from the home page to continue learning.
+            </p>
+          </div>
+
+          <button
+            onClick={() => router.push('/')}
+            className="w-full rounded-xl bg-[#1463ff] px-6 py-3 font-semibold text-white hover:bg-[#0d4fc7] transition-colors"
+          >
+            Go to Home
+          </button>
+        </div>
+      </div>
     );
   }
 
@@ -267,13 +297,41 @@ export default function SessionPage() {
             ? sessionError.message 
             : 'Failed to load session. Please try again.'
         }
+        error={sessionError}
         onRetry={refetchSession}
       />
     );
   }
 
   if (!session) {
-    return null;
+    return (
+      <div className="min-h-screen flex items-center justify-center p-8 bg-[#f4f7fb]">
+        <div className="soft-card max-w-md p-10 text-center">
+          <div className="mb-6">
+            <svg className="w-16 h-16 text-[#8792a5] mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h2 className="text-2xl font-bold text-[#10213d] mb-2">Session Not Found</h2>
+          <p className="text-[#718096] mb-4">
+            The session you&apos;re looking for doesn&apos;t exist or has been deleted.
+          </p>
+          
+          <div className="rounded-xl bg-[#f8fafc] border border-[#dfe6ef] p-4 mb-6">
+            <p className="text-sm text-[#718096]">
+              Start a new learning session to continue.
+            </p>
+          </div>
+
+          <button
+            onClick={() => router.push('/new-session')}
+            className="w-full rounded-xl bg-[#1463ff] px-6 py-3 font-semibold text-white hover:bg-[#0d4fc7] transition-colors"
+          >
+            Start New Session
+          </button>
+        </div>
+      </div>
+    );
   }
 
   // Get current concept from tutor data if available
@@ -313,14 +371,14 @@ export default function SessionPage() {
       {session.status === 'analyzing' && <AnalyzingView topic={session.normalized_topic || session.original_prompt} onCancel={() => router.push('/')} />}
 
       {session.status === 'diagnosing' && (
-        <section className="flex flex-col md:flex-row gap-6 p-4 md:p-6 lg:p-8">
+        <section className="flex flex-col lg:flex-row gap-6 p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto">
           {/* Left column (or top on mobile): Knowledge Map */}
-          <div className="w-full md:w-1/2 lg:w-3/5">
+          <div className="w-full lg:w-1/2 xl:w-3/5 min-w-0">
             {graphPanel}
           </div>
           
           {/* Right column (or bottom on mobile): Diagnostic Assessment */}
-          <div className="w-full md:w-1/2 lg:w-2/5">
+          <div className="w-full lg:w-1/2 xl:w-2/5 min-w-0">
             <DiagnosticAssessmentCard 
               question={currentQuestion || null} 
               evaluation={lastEvaluation} 
@@ -338,9 +396,9 @@ export default function SessionPage() {
       )}
 
       {session.status === 'tutoring' && showTutor && (
-        <section className="mx-auto grid min-h-[calc(100vh-76px)] max-w-[1540px] gap-6 p-4 sm:p-7 xl:grid-cols-[340px_1fr]">
+        <section className="mx-auto grid min-h-[calc(100vh-76px)] w-full max-w-[1600px] gap-4 sm:gap-6 p-4 sm:p-6 lg:p-7 xl:grid-cols-[340px_1fr]">
           <LearningPath graph={graph} rootGap={rootGap || null} />
-          <div className="soft-card min-h-[760px] overflow-hidden">
+          <div className="soft-card min-h-[600px] lg:min-h-[760px] overflow-hidden w-full min-w-0">
             <TutorPanel
               sessionId={sessionId}
               userId={userId}
@@ -361,29 +419,300 @@ export default function SessionPage() {
       )}
 
       {session.status === 'teachback' && (
-        <section className="workspace-pattern min-h-[calc(100vh-76px)] p-4 sm:p-8">
-          <div className="soft-card mx-auto max-w-4xl overflow-hidden p-6 sm:p-10">
-            <div className="mb-8 border-b border-[#e3e9f1] pb-6">
+        <section className="workspace-pattern min-h-[calc(100vh-76px)] p-4 sm:p-6 lg:p-8">
+          <div className="soft-card mx-auto max-w-4xl overflow-hidden p-4 sm:p-6 lg:p-10 w-full">
+            <div className="mb-6 sm:mb-8 border-b border-[#e3e9f1] pb-4 sm:pb-6">
               <span className="rounded-full bg-[#eaf1ff] px-3 py-1.5 text-sm font-semibold text-[#1463ff]">Teach-Back</span>
-              <h1 className="mt-4 text-3xl font-bold">Explain it in your own words</h1>
-              <p className="mt-2 text-[#718096]">Show that the concept makes sense without relying on memorized language.</p>
+              <h1 className="mt-4 text-2xl sm:text-3xl font-bold">Explain it in your own words</h1>
+              <p className="mt-2 text-sm sm:text-base text-[#718096]">Show that the concept makes sense without relying on memorized language.</p>
             </div>
-            <TeachBackPanel currentConcept={currentConcept} masteryScore={masteryScore} confidenceScore={confidenceScore} evaluation={teachBackEvaluation} isLoading={submitTeachBackMutation.isPending} onSubmitExplanation={(explanation) => submitTeachBackMutation.mutateAsync(explanation)} onContinue={() => refetchSession()} />
+            <TeachBackPanel 
+              currentConcept={currentConcept} 
+              masteryScore={masteryScore} 
+              confidenceScore={confidenceScore} 
+              evaluation={teachBackEvaluation} 
+              isLoading={submitTeachBackMutation.isPending} 
+              onSubmitExplanation={(explanation) => submitTeachBackMutation.mutateAsync(explanation)} 
+              onContinue={() => refetchSession()}
+              onRetry={() => setTeachBackEvaluation(null)}
+            />
           </div>
         </section>
       )}
 
-      {(session.status === 'completed' || session.status === 'abandoned') && (
-        <section className="workspace-pattern flex min-h-[calc(100vh-76px)] items-center justify-center p-6">
-          <div className="soft-card w-full max-w-xl p-10 text-center">
-            <span className={`mx-auto flex h-16 w-16 items-center justify-center rounded-full text-3xl ${session.status === 'completed' ? 'bg-[#e2f7ef] text-[#20a572]' : 'bg-[#f0f2f5] text-[#8792a5]'}`}>{session.status === 'completed' ? '✓' : '×'}</span>
-            <h1 className="mt-6 text-3xl font-bold">{session.status === 'completed' ? 'Learning complete!' : 'Session paused'}</h1>
-            <p className="mx-auto mt-3 max-w-md text-[#718096]">{session.status === 'completed' ? "You've worked through the root knowledge gap and verified your understanding." : 'This learning session was not completed. You can begin a fresh session whenever you are ready.'}</p>
-            <button type="button" onClick={() => router.push('/new-session')} className="mt-8 rounded-xl bg-[#1463ff] px-6 py-3 font-semibold text-white">Start a new session</button>
-          </div>
-        </section>
+      {session.status === 'completed' && (
+        <CompletedSessionView 
+          masteryEvents={masteryEvents || []}
+          graph={graph}
+          isLoading={masteryLoading}
+          onNewSession={() => router.push('/new-session')}
+        />
+      )}
+
+      {session.status === 'abandoned' && (
+        <AbandonedSessionView
+          session={session}
+          masteryEvents={masteryEvents || []}
+          graph={graph}
+          isLoading={masteryLoading}
+          onNewSession={() => router.push('/new-session')}
+        />
       )}
     </AppShell>
+  );
+}
+
+function AbandonedSessionView({
+  session,
+  masteryEvents,
+  graph,
+  isLoading,
+  onNewSession,
+}: {
+  session: SessionResponse;
+  masteryEvents: MasteryEvent[];
+  graph?: PrerequisiteGraph;
+  isLoading: boolean;
+  onNewSession: () => void;
+}) {
+  // Calculate what was accomplished
+  const conceptsWorkedOn = new Set(masteryEvents.map(e => e.concept_id)).size;
+  const totalProgress = masteryEvents.reduce((sum, e) => sum + (e.new_score - e.old_score), 0);
+
+  // Get concept names from graph
+  const conceptNames = graph?.concepts.reduce((acc, c) => {
+    acc[c.id] = c.name;
+    return acc;
+  }, {} as Record<string, string>) || {};
+
+  return (
+    <section className="workspace-pattern flex min-h-[calc(100vh-76px)] items-center justify-center p-6">
+      <div className="soft-card w-full max-w-2xl p-10">
+        <div className="text-center">
+          <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#f0f2f5] text-3xl text-[#8792a5]">
+            ⏸
+          </span>
+          <h1 className="mt-6 text-3xl font-bold">Session paused</h1>
+          <p className="mx-auto mt-3 max-w-md text-[#718096]">
+            This learning session was not completed. You can begin a fresh session whenever you are ready.
+          </p>
+        </div>
+
+        {/* Show what was accomplished */}
+        {!isLoading && masteryEvents.length > 0 && (
+          <div className="mt-8 border-t border-[#e1e7ef] pt-8">
+            <h2 className="mb-4 text-center text-lg font-semibold text-[#10213d]">
+              Progress made before pausing
+            </h2>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="rounded-xl border border-[#dfe6ef] bg-[#f8fafc] p-4 text-center">
+                <p className="text-2xl font-bold text-[#1463ff]">{conceptsWorkedOn}</p>
+                <p className="mt-1 text-sm text-[#718096]">
+                  Concept{conceptsWorkedOn !== 1 ? 's' : ''} explored
+                </p>
+              </div>
+              <div className="rounded-xl border border-[#dfe6ef] bg-[#f8fafc] p-4 text-center">
+                <p className="text-2xl font-bold text-[#20a572]">
+                  {totalProgress > 0 ? `+${Math.round(totalProgress * 100)}%` : '0%'}
+                </p>
+                <p className="mt-1 text-sm text-[#718096]">Mastery gained</p>
+              </div>
+            </div>
+
+            {/* List concepts worked on */}
+            {conceptsWorkedOn > 0 && (
+              <div className="mt-6">
+                <p className="mb-3 text-sm font-medium text-[#718096]">Concepts you worked on:</p>
+                <div className="space-y-2">
+                  {Array.from(new Set(masteryEvents.map(e => e.concept_id))).slice(0, 5).map(conceptId => (
+                    <div 
+                      key={conceptId} 
+                      className="flex items-center gap-3 rounded-lg border border-[#e8edf4] bg-white px-4 py-2"
+                    >
+                      <span className="h-2 w-2 rounded-full bg-[#1463ff]"></span>
+                      <span className="text-sm text-[#10213d]">
+                        {conceptNames[conceptId] || conceptId}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Actions */}
+        <div className="mt-8 flex flex-col gap-3 text-center">
+          {/* Note: Resume functionality would require backend support to restore session state */}
+          <button
+            type="button"
+            onClick={onNewSession}
+            className="rounded-xl bg-[#1463ff] px-6 py-3 font-semibold text-white hover:bg-[#0d4fc7] transition-colors"
+          >
+            Start a new session
+          </button>
+          <p className="text-sm text-[#8792a5]">
+            Note: Resuming paused sessions is not currently available
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function CompletedSessionView({ 
+  masteryEvents, 
+  graph, 
+  isLoading,
+  onNewSession 
+}: { 
+  masteryEvents: MasteryEvent[]; 
+  graph?: PrerequisiteGraph; 
+  isLoading: boolean;
+  onNewSession: () => void;
+}) {
+  // Calculate mastery achievements
+  const conceptsLearned = new Set(masteryEvents.map(e => e.concept_id)).size;
+  const totalScoreGain = masteryEvents.reduce((sum, e) => sum + (e.new_score - e.old_score), 0);
+  const averageConfidence = masteryEvents.length > 0
+    ? masteryEvents.reduce((sum, e) => sum + e.new_confidence, 0) / masteryEvents.length
+    : 0;
+
+  // Get concept names from graph
+  const conceptNames = graph?.concepts.reduce((acc, c) => {
+    acc[c.id] = c.name;
+    return acc;
+  }, {} as Record<string, string>) || {};
+
+  // Group events by concept
+  const eventsByConcept = masteryEvents.reduce((acc, event) => {
+    if (!acc[event.concept_id]) {
+      acc[event.concept_id] = [];
+    }
+    acc[event.concept_id].push(event);
+    return acc;
+  }, {} as Record<string, MasteryEvent[]>);
+
+  // Get final mastery for each concept
+  const conceptMasteryFinal = Object.entries(eventsByConcept).map(([conceptId, events]) => {
+    const latestEvent = events[events.length - 1];
+    return {
+      conceptId,
+      name: conceptNames[conceptId] || conceptId,
+      finalScore: latestEvent.new_score,
+      finalConfidence: latestEvent.new_confidence,
+      improvement: latestEvent.new_score - events[0].old_score,
+    };
+  }).sort((a, b) => b.finalScore - a.finalScore);
+
+  return (
+    <section className="workspace-pattern min-h-[calc(100vh-76px)] p-4 sm:p-6 overflow-x-hidden w-full">
+      <div className="mx-auto max-w-4xl w-full">
+        {/* Celebration Card */}
+        <div className="soft-card p-6 sm:p-10 text-center w-full overflow-hidden">
+          <span className="mx-auto flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-[#e2f7ef] text-2xl sm:text-3xl text-[#20a572]">
+            ✓
+          </span>
+          <h1 className="mt-4 sm:mt-6 text-2xl sm:text-3xl font-bold">Learning complete!</h1>
+          <p className="mx-auto mt-3 max-w-md text-sm sm:text-base text-[#718096] px-4">
+            You&apos;ve worked through the root knowledge gap and verified your understanding.
+          </p>
+
+          {isLoading ? (
+            <div className="mt-8 flex justify-center">
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#9dbaff] border-t-[#1463ff]"></div>
+            </div>
+          ) : (
+            <>
+              {/* Mastery Achievements */}
+              {masteryEvents.length > 0 && (
+                <div className="mt-8 grid gap-4 sm:grid-cols-3 w-full">
+                  <div className="rounded-xl border border-[#dfe6ef] bg-[#f8fafc] p-4">
+                    <p className="text-2xl font-bold text-[#1463ff]">{conceptsLearned}</p>
+                    <p className="mt-1 text-sm text-[#718096]">Concepts learned</p>
+                  </div>
+                  <div className="rounded-xl border border-[#dfe6ef] bg-[#f8fafc] p-4">
+                    <p className="text-2xl font-bold text-[#20a572]">
+                      +{Math.round(totalScoreGain * 100)}%
+                    </p>
+                    <p className="mt-1 text-sm text-[#718096]">Total mastery gain</p>
+                  </div>
+                  <div className="rounded-xl border border-[#dfe6ef] bg-[#f8fafc] p-4">
+                    <p className="text-2xl font-bold text-[#e8a12d]">
+                      {Math.round(averageConfidence * 100)}%
+                    </p>
+                    <p className="mt-1 text-sm text-[#718096]">Avg. confidence</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Concept Progress Details */}
+              {conceptMasteryFinal.length > 0 && (
+                <div className="mt-8 text-left w-full overflow-hidden">
+                  <h2 className="mb-4 text-lg sm:text-xl font-bold">Your Progress</h2>
+                  <div className="space-y-3 w-full">
+                    {conceptMasteryFinal.map(({ conceptId, name, finalScore, finalConfidence, improvement }) => (
+                      <div 
+                        key={conceptId} 
+                        className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-xl border border-[#dfe6ef] bg-white p-4 w-full overflow-hidden"
+                      >
+                        <div className="flex-1 min-w-0 w-full">
+                          <p className="font-semibold text-[#10213d] break-words">{name}</p>
+                          <div className="mt-2 flex flex-wrap items-center gap-3 sm:gap-4 text-sm text-[#718096]">
+                            <span className="whitespace-nowrap">Mastery: {Math.round(finalScore * 100)}%</span>
+                            <span className="whitespace-nowrap">Confidence: {Math.round(finalConfidence * 100)}%</span>
+                            {improvement > 0 && (
+                              <span className="text-[#20a572] whitespace-nowrap">
+                                +{Math.round(improvement * 100)}%
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex-shrink-0">
+                          {finalScore >= 0.8 ? (
+                            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#e2f7ef] text-[#20a572]">
+                              ✓
+                            </span>
+                          ) : finalScore >= 0.5 ? (
+                            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#fff6e7] text-[#e8a12d]">
+                              ◐
+                            </span>
+                          ) : (
+                            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#f0f2f5] text-[#8792a5]">
+                              ○
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Actions */}
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center w-full">
+            <button
+              type="button"
+              onClick={onNewSession}
+              className="w-full sm:w-auto rounded-xl bg-[#1463ff] px-6 py-3 font-semibold text-white hover:bg-[#0d4fc7] transition-colors"
+            >
+              Start a new session
+            </button>
+            {/* Session history placeholder - as per design missing backend capability note */}
+            <button
+              type="button"
+              disabled
+              className="w-full sm:w-auto rounded-xl border border-[#dfe6ef] bg-white px-6 py-3 font-semibold text-[#8792a5] opacity-50 cursor-not-allowed"
+              title="Session history coming soon"
+            >
+              Review session history
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -396,35 +725,35 @@ function AnalyzingView({ topic, onCancel }: { topic: string; onCancel: () => voi
   ];
 
   return (
-    <section className="workspace-pattern flex min-h-[calc(100vh-76px)] flex-col items-center justify-center px-5 py-12">
-      <div className="soft-card w-full max-w-[670px] p-7 sm:p-10">
+    <section className="workspace-pattern flex min-h-[calc(100vh-76px)] flex-col items-center justify-center px-4 sm:px-5 py-8 sm:py-12 w-full overflow-hidden">
+      <div className="soft-card w-full max-w-[670px] p-5 sm:p-7 lg:p-10">
         <div className="text-center">
-          <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border-2 border-[#9dbaff] bg-[#f1f6ff] text-2xl text-[#1463ff]">⌘</span>
-          <h1 className="mt-6 text-3xl font-bold">Analyzing your topic</h1>
-          <p className="mt-2 text-lg text-[#718096]">Building your prerequisite knowledge map</p>
+          <span className="mx-auto flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-full border-2 border-[#9dbaff] bg-[#f1f6ff] text-xl sm:text-2xl text-[#1463ff]">⌘</span>
+          <h1 className="mt-4 sm:mt-6 text-2xl sm:text-3xl font-bold">Analyzing your topic</h1>
+          <p className="mt-2 text-base sm:text-lg text-[#718096]">Building your prerequisite knowledge map</p>
         </div>
-        <ol className="mt-10 space-y-6">
+        <ol className="mt-8 sm:mt-10 space-y-5 sm:space-y-6">
           {steps.map(([title, detail], index) => {
             const complete = index < 2;
             const active = index === 2;
             return (
-              <li key={title} className="relative flex gap-4">
+              <li key={title} className="relative flex gap-3 sm:gap-4">
                 {index < steps.length - 1 && <span className="absolute left-[18px] top-9 h-10 w-px bg-[#dbe4ef]" />}
                 <span className={`relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 ${complete ? 'border-[#20a572] bg-[#20a572] text-white' : active ? 'animate-pulse border-[#1463ff] bg-white text-[#1463ff]' : 'border-[#dbe4ef] bg-white text-[#a7b2c2]'}`}>{complete ? '✓' : active ? '◔' : '○'}</span>
-                <div>
-                  <p className={`font-semibold ${active ? 'text-[#1463ff]' : complete ? 'text-[#10213d]' : 'text-[#718096]'}`}>{title}</p>
-                  <p className="mt-0.5 text-sm text-[#8a96a9]">{detail}</p>
+                <div className="min-w-0 flex-1">
+                  <p className={`font-semibold text-sm sm:text-base ${active ? 'text-[#1463ff]' : complete ? 'text-[#10213d]' : 'text-[#718096]'}`}>{title}</p>
+                  <p className="mt-0.5 text-xs sm:text-sm text-[#8792a5] break-words">{detail}</p>
                 </div>
               </li>
             );
           })}
         </ol>
-        <div className="mt-9 border-t border-[#e1e7ef] pt-7 text-center">
-          <p className="text-lg font-semibold">Mapping what you need to know first…</p>
+        <div className="mt-7 sm:mt-9 border-t border-[#e1e7ef] pt-5 sm:pt-7 text-center">
+          <p className="text-base sm:text-lg font-semibold">Mapping what you need to know first…</p>
           <p className="mt-2 text-sm text-[#718096]">◷ This usually takes about a minute</p>
         </div>
       </div>
-      <button type="button" onClick={onCancel} className="mt-7 text-sm font-medium text-[#718096] hover:text-[#10213d]">× &nbsp;Cancel and return home</button>
+      <button type="button" onClick={onCancel} className="mt-6 sm:mt-7 text-sm font-medium text-[#718096] hover:text-[#10213d]">× &nbsp;Cancel and return home</button>
     </section>
   );
 }
@@ -444,21 +773,21 @@ function GraphPanel({ graph, isLoading, error, onRetry, topic }: { graph?: Prere
 function RootGapView({ rootGap, graph, isLoading, onContinue }: { rootGap: RootGapResult | null; graph?: PrerequisiteGraph; isLoading: boolean; onContinue: () => void }) {
   const path = graph?.concepts.slice(0, 4) || [];
   return (
-    <section className="min-h-[calc(100vh-76px)] px-4 py-10 sm:px-8">
-      <div className="mx-auto max-w-5xl text-center">
+    <section className="min-h-[calc(100vh-76px)] px-4 py-6 sm:px-6 sm:py-10 w-full overflow-x-hidden">
+      <div className="mx-auto max-w-5xl text-center w-full">
         <span className="rounded-full bg-[#ddf4ea] px-4 py-2 text-sm font-semibold text-[#18986b]">✓ Diagnosis complete</span>
-        <h1 className="mt-6 text-4xl font-bold tracking-tight">We found the foundational gap</h1>
-        <p className="mx-auto mt-3 max-w-2xl text-lg text-[#718096]">Pinpointing the real starting point means the rest can click into place much faster.</p>
+        <h1 className="mt-6 text-3xl sm:text-4xl font-bold tracking-tight">We found the foundational gap</h1>
+        <p className="mx-auto mt-3 max-w-2xl text-base sm:text-lg text-[#718096] px-4">Pinpointing the real starting point means the rest can click into place much faster.</p>
       </div>
-      <div className="mx-auto mt-10 max-w-5xl">
+      <div className="mx-auto mt-8 sm:mt-10 max-w-5xl w-full">
         <RootGapCard rootGap={rootGap} isLoading={isLoading} onFixGap={onContinue} />
         {rootGap && (
-          <div className="soft-card mt-7 p-7 sm:p-9">
-            <h2 className="text-xl font-bold"><span className="mr-2 text-[#1463ff]">⌕</span>Evidence used to identify the gap</h2>
-            <div className="mt-5 grid gap-4 md:grid-cols-2">
-              {rootGap.root_gap.reasons.slice(0, 4).map((reason, index) => <div key={reason} className="rounded-xl border border-[#dfe6ef] bg-[#f8fafc] p-4"><p className="font-semibold text-[#10213d]">Signal {index + 1}</p><p className="mt-1 text-sm leading-6 text-[#718096]">{reason}</p></div>)}
+          <div className="soft-card mt-6 sm:mt-7 p-4 sm:p-7 lg:p-9 w-full overflow-hidden">
+            <h2 className="text-lg sm:text-xl font-bold"><span className="mr-2 text-[#1463ff]">⌕</span>Evidence used to identify the gap</h2>
+            <div className="mt-5 grid gap-4 sm:grid-cols-2 w-full">
+              {rootGap.root_gap.reasons.slice(0, 4).map((reason, index) => <div key={reason} className="rounded-xl border border-[#dfe6ef] bg-[#f8fafc] p-4 break-words"><p className="font-semibold text-[#10213d]">Signal {index + 1}</p><p className="mt-1 text-sm leading-6 text-[#718096]">{reason}</p></div>)}
             </div>
-            {path.length > 0 && <p className="mt-6 text-sm text-[#718096]">Learning path: {path.map((concept) => concept.name).join(' → ')}</p>}
+            {path.length > 0 && <p className="mt-6 text-sm text-[#718096] break-words">Learning path: {path.map((concept) => concept.name).join(' → ')}</p>}
           </div>
         )}
       </div>
@@ -469,18 +798,18 @@ function RootGapView({ rootGap, graph, isLoading, onContinue }: { rootGap: RootG
 function LearningPath({ graph, rootGap }: { graph?: PrerequisiteGraph; rootGap: RootGapResult | null }) {
   const concepts = graph?.concepts.slice(0, 5) || [];
   return (
-    <div className="space-y-6">
-      <div className="soft-card p-6">
-        <h2 className="text-xl font-bold">Learning Path</h2>
+    <div className="space-y-4 sm:space-y-6 w-full overflow-hidden">
+      <div className="soft-card p-4 sm:p-6 w-full">
+        <h2 className="text-lg sm:text-xl font-bold">Learning Path</h2>
         <p className="mt-2 text-sm text-[#718096]">Root gap → target concept</p>
-        <ol className="mt-6 space-y-5">
+        <ol className="mt-6 space-y-4 sm:space-y-5">
           {concepts.map((concept, index) => {
             const isGap = concept.id === rootGap?.root_gap.concept_id;
-            return <li key={concept.id} className="flex gap-3"><span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 ${concept.status === 'mastered' ? 'border-[#20a572] bg-[#20a572] text-white' : isGap ? 'border-[#1463ff] bg-[#1463ff] text-white' : 'border-[#e8a12d] bg-[#fff6e7] text-[#e8a12d]'}`}>{concept.status === 'mastered' ? '✓' : isGap ? '▷' : index + 1}</span><div><p className={`font-semibold ${isGap ? 'text-[#1463ff]' : ''}`}>{concept.name}</p><p className="text-sm capitalize text-[#718096]">{isGap ? 'Current · Root gap' : concept.status}</p></div></li>;
+            return <li key={concept.id} className="flex gap-3"><span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 ${concept.status === 'mastered' ? 'border-[#20a572] bg-[#20a572] text-white' : isGap ? 'border-[#1463ff] bg-[#1463ff] text-white' : 'border-[#e8a12d] bg-[#fff6e7] text-[#e8a12d]'}`}>{concept.status === 'mastered' ? '✓' : isGap ? '▷' : index + 1}</span><div className="min-w-0 flex-1"><p className={`font-semibold truncate ${isGap ? 'text-[#1463ff]' : ''}`}>{concept.name}</p><p className="text-sm capitalize text-[#718096]">{isGap ? 'Current · Root gap' : concept.status}</p></div></li>;
           })}
         </ol>
       </div>
-      <div className="soft-card p-6"><h3 className="font-bold">Mastery legend</h3><div className="mt-4 space-y-3 text-sm text-[#718096]"><p><span className="mr-2 text-[#20a572]">●</span>Mastered</p><p><span className="mr-2 text-[#1463ff]">●</span>Current root gap</p><p><span className="mr-2 text-[#e8a12d]">●</span>Learning</p><p><span className="mr-2 text-[#a7b2c2]">○</span>Not reached</p></div></div>
+      <div className="soft-card p-4 sm:p-6 w-full"><h3 className="font-bold text-sm sm:text-base">Mastery legend</h3><div className="mt-4 space-y-3 text-sm text-[#718096]"><p><span className="mr-2 text-[#20a572]">●</span>Mastered</p><p><span className="mr-2 text-[#1463ff]">●</span>Current root gap</p><p><span className="mr-2 text-[#e8a12d]">●</span>Learning</p><p><span className="mr-2 text-[#a7b2c2]">○</span>Not reached</p></div></div>
     </div>
   );
 }
@@ -567,36 +896,96 @@ function ErrorDisplay({
   title, 
   message, 
   onRetry,
-  retryLabel = 'Try Again'
+  retryLabel = 'Try Again',
+  error,
 }: { 
   title: string; 
   message: string; 
   onRetry: () => void;
   retryLabel?: string;
+  error?: Error | APIError | null;
 }) {
+  // Determine error type and provide specific guidance
+  const getErrorGuidance = () => {
+    if (error instanceof APIError) {
+      // Network errors (no status or connection issues)
+      if (!error.status || error.message.toLowerCase().includes('network') || error.message.toLowerCase().includes('fetch')) {
+        return {
+          type: 'network',
+          guidance: 'Please check your internet connection and try again.',
+          icon: (
+            <svg className="w-16 h-16 text-[#e8a12d] mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0" />
+            </svg>
+          ),
+        };
+      }
+      
+      // Server errors (5xx)
+      if (error.status >= 500) {
+        return {
+          type: 'server',
+          guidance: 'The server encountered an error. Please try again in a few moments.',
+          icon: (
+            <svg className="w-16 h-16 text-[#ef4444] mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
+            </svg>
+          ),
+        };
+      }
+      
+      // Client errors (4xx)
+      if (error.status >= 400 && error.status < 500) {
+        return {
+          type: 'client',
+          guidance: error.message || 'There was a problem with the request.',
+          icon: (
+            <svg className="w-16 h-16 text-[#ef4444] mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          ),
+        };
+      }
+    }
+    
+    // Generic error
+    return {
+      type: 'generic',
+      guidance: 'An unexpected error occurred. Please try again.',
+      icon: (
+        <svg className="w-16 h-16 text-[#ef4444] mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+      ),
+    };
+  };
+
+  const errorGuidance = getErrorGuidance();
+
   return (
-    <div className="min-h-screen flex items-center justify-center p-8 bg-gray-50">
-      <div className="text-center max-w-md">
-        <div className="mb-4">
-          <svg 
-            className="w-16 h-16 text-red-500 mx-auto" 
-            fill="none" 
-            stroke="currentColor" 
-            viewBox="0 0 24 24"
-          >
-            <path 
-              strokeLinecap="round" 
-              strokeLinejoin="round" 
-              strokeWidth={2} 
-              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" 
-            />
-          </svg>
+    <div className="min-h-screen flex items-center justify-center p-8 bg-[#f4f7fb]">
+      <div className="soft-card max-w-md p-10 text-center">
+        <div className="mb-6">
+          {errorGuidance.icon}
         </div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">{title}</h2>
-        <p className="text-gray-600 mb-6">{message}</p>
+        <h2 className="text-2xl font-bold text-[#10213d] mb-2">{title}</h2>
+        <p className="text-[#718096] mb-4">{message}</p>
+        
+        {/* Specific error guidance */}
+        <div className="rounded-xl bg-[#f8fafc] border border-[#dfe6ef] p-4 mb-6">
+          <p className="text-sm text-[#718096]">{errorGuidance.guidance}</p>
+        </div>
+
+        {/* Request ID if available */}
+        {error instanceof APIError && error.requestId && (
+          <p className="text-xs text-[#8792a5] mb-6">
+            Request ID: {error.requestId}
+          </p>
+        )}
+
         <button
           onClick={onRetry}
-          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+          className="w-full rounded-xl bg-[#1463ff] px-6 py-3 font-semibold text-white hover:bg-[#0d4fc7] transition-colors"
         >
           {retryLabel}
         </button>

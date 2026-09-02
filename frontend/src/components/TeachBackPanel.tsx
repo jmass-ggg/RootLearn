@@ -2,6 +2,9 @@
 
 import { useState } from 'react';
 import { TeachBackResponse } from '@/types/teachback';
+import { Card } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { StateDisplay } from '@/components/ui/StateDisplay';
 
 interface TeachBackPanelProps {
   currentConcept: {
@@ -13,14 +16,16 @@ interface TeachBackPanelProps {
   confidenceScore: number;
   evaluation: TeachBackResponse | null;
   isLoading: boolean;
+  error?: Error | null;
   onSubmitExplanation: (explanation: string) => Promise<TeachBackResponse>;
   onContinue: () => void;
+  onRetry?: () => void;
 }
 
 /**
  * TeachBackPanel component
  * Collects student explanation and displays evaluation results
- * Requirements: 10.2, 10.3
+ * Requirements: 9.2, 9.3, 9.4, 9.5, 9.6
  */
 export default function TeachBackPanel({
   currentConcept,
@@ -28,11 +33,14 @@ export default function TeachBackPanel({
   confidenceScore,
   evaluation,
   isLoading,
+  error,
   onSubmitExplanation,
   onContinue,
+  onRetry,
 }: TeachBackPanelProps) {
   const [explanation, setExplanation] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submissionError, setSubmissionError] = useState<string | null>(null);
 
   // Minimum word count for valid explanation
   const MIN_WORDS = 8;
@@ -53,84 +61,101 @@ export default function TeachBackPanel({
     }
 
     setIsSubmitting(true);
+    setSubmissionError(null); // Clear previous errors
     try {
       await onSubmitExplanation(explanation);
       setExplanation(''); // Clear explanation after successful submission
     } catch (error) {
       console.error('Failed to submit explanation:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to submit explanation. Please try again.';
+      setSubmissionError(errorMessage);
       // Don't clear on error so user can retry
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const getMasteryColor = (score: number): string => {
-    if (score >= 0.85) return 'text-green-600';
-    if (score >= 0.70) return 'text-lime-600';
-    if (score >= 0.40) return 'text-yellow-600';
-    return 'text-red-600';
+  const handleRetry = () => {
+    // Clear the explanation and error to allow retry
+    setExplanation('');
+    setSubmissionError(null);
+    // Call the onRetry callback if provided, otherwise just clear evaluation state
+    if (onRetry) {
+      onRetry();
+    }
   };
 
-  const getMasteryBgColor = (score: number): string => {
-    if (score >= 0.85) return 'bg-green-100';
-    if (score >= 0.70) return 'bg-lime-100';
-    if (score >= 0.40) return 'bg-yellow-100';
-    return 'bg-red-100';
+  const getMasteryTextColor = (score: number): string => {
+    if (score >= 0.85) return 'text-mastery-mastered';
+    if (score >= 0.70) return 'text-mastery-understood';
+    if (score >= 0.40) return 'text-mastery-learning';
+    return 'text-mastery-weak';
   };
 
   const getMasteryBarColor = (score: number): string => {
-    if (score >= 0.85) return 'bg-green-500';
-    if (score >= 0.70) return 'bg-lime-500';
-    if (score >= 0.40) return 'bg-yellow-500';
-    return 'bg-red-500';
+    if (score >= 0.85) return 'bg-mastery-mastered';
+    if (score >= 0.70) return 'bg-mastery-understood';
+    if (score >= 0.40) return 'bg-mastery-learning';
+    return 'bg-mastery-weak';
   };
 
+  const getMasteryStrokeColor = (score: number): string => {
+    if (score >= 0.85) return 'stroke-mastery-mastered';
+    if (score >= 0.70) return 'stroke-mastery-understood';
+    if (score >= 0.40) return 'stroke-mastery-learning';
+    return 'stroke-mastery-weak';
+  };
+
+  // Loading state during evaluation
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
+      <Card variant="elevated" padding="xl">
+        <StateDisplay
+          variant="loading"
+          title="Evaluating your explanation..."
+          description="We're analyzing your understanding. This will just take a moment."
+        />
+      </Card>
     );
   }
 
+  // No concept state
   if (!currentConcept) {
     return (
-      <div className="flex items-center justify-center h-64 text-gray-500">
-        <p>No teach-back session active</p>
-      </div>
+      <Card variant="elevated" padding="xl">
+        <StateDisplay
+          variant="empty"
+          title="No teach-back session active"
+          description="Please start a tutoring session first."
+        />
+      </Card>
     );
   }
 
   return (
     <div className="space-y-6">
-      {/* Instruction Section */}
+      {/* Teach-Back Form */}
       {!evaluation && (
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="mb-4">
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              Teach-Back: {currentConcept.name}
-            </h3>
-            <p className="text-sm text-gray-600 mb-3">
-              Time to teach back! Explain {currentConcept.name} in your own words to demonstrate your understanding.
-            </p>
-            
-            {/* Current mastery display */}
-            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-              <div>
-                <div className="text-xs font-medium text-gray-500">Current Mastery</div>
-                <div className={`text-xl font-bold ${getMasteryColor(masteryScore)}`}>
-                  {Math.round(masteryScore * 100)}%
-                </div>
-              </div>
-              <div className="text-xl font-bold text-blue-600">Confidence: {Math.round(confidenceScore * 100)}%</div>
+        <Card variant="elevated" padding="xl">
+          {/* Header: Clearly identify concept being explained */}
+          <div className="mb-6">
+            <div className="inline-block px-3 py-1 bg-brand-blue/10 text-brand-blue rounded-full text-sm font-medium mb-3">
+              {currentConcept.name}
             </div>
+            <h2 className="text-2xl font-bold text-text-heading mb-2">
+              Teach it back
+            </h2>
+            <p className="text-base text-text-body">
+              Explain {currentConcept.name} in your own words. This helps verify your understanding and identify any remaining gaps.
+            </p>
           </div>
 
-          <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6">
-            <div className="flex">
-              <div className="flex-shrink-0">
+          {/* Tips section */}
+          <div className="bg-brand-blue/5 border-l-4 border-brand-blue rounded-r-lg p-4 mb-6">
+            <div className="flex gap-3">
+              <div className="flex-shrink-0 mt-0.5">
                 <svg
-                  className="h-5 w-5 text-blue-400"
+                  className="h-5 w-5 text-brand-blue"
                   xmlns="http://www.w3.org/2000/svg"
                   viewBox="0 0 20 20"
                   fill="currentColor"
@@ -143,13 +168,13 @@ export default function TeachBackPanel({
                   />
                 </svg>
               </div>
-              <div className="ml-3 flex-1">
-                <p className="text-sm text-blue-700">
-                  <strong>Tips for a great explanation:</strong>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-brand-blue mb-2">
+                  Tips for a great explanation:
                 </p>
-                <ul className="list-disc list-inside text-sm text-blue-700 mt-2 space-y-1">
+                <ul className="list-disc list-inside text-sm text-text-body space-y-1">
                   <li>Explain the core concept clearly</li>
-                  <li>Include why it&apos;s important or how it works</li>
+                  <li>Include why it's important or how it works</li>
                   <li>Use your own words, not just what you memorized</li>
                   <li>Add an example if it helps</li>
                 </ul>
@@ -158,11 +183,37 @@ export default function TeachBackPanel({
           </div>
 
           {/* Explanation Form */}
-          <form onSubmit={handleSubmit}>
-            <div className="mb-4">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Error Display */}
+            {submissionError && (
+              <div className="bg-mastery-weak/10 border-l-4 border-mastery-weak rounded-r-lg p-4">
+                <div className="flex gap-3">
+                  <div className="flex-shrink-0 mt-0.5">
+                    <svg
+                      className="h-5 w-5 text-mastery-weak"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-mastery-weak">
+                      {submissionError}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div>
               <label
                 htmlFor="explanation"
-                className="block text-sm font-medium text-gray-700 mb-2"
+                className="block text-sm font-medium text-text-heading mb-2"
               >
                 Your Explanation
               </label>
@@ -170,179 +221,166 @@ export default function TeachBackPanel({
                 id="explanation"
                 value={explanation}
                 onChange={(e) => setExplanation(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
-                rows={12}
+                className="w-full px-4 py-3 border border-border-default rounded-lg focus:ring-2 focus:ring-brand-blue focus:border-transparent resize-none text-text-body bg-bg-card"
+                rows={14}
                 placeholder="Start typing your explanation here..."
                 disabled={isSubmitting}
                 required
               />
               <div className="mt-2 flex justify-between items-center">
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-text-muted">
                   {getWordCount(explanation)} words (minimum {MIN_WORDS} words)
                 </p>
                 {explanation.trim() && !isExplanationValid() && (
-                  <p className="text-xs text-orange-600">
+                  <p className="text-xs text-mastery-learning">
                     Please write at least {MIN_WORDS} words
                   </p>
                 )}
               </div>
             </div>
 
-            <button
+            <Button
               type="submit"
-              disabled={isSubmitting || !isExplanationValid()}
-              className="w-full bg-gradient-to-r from-purple-500 to-indigo-500 text-white px-6 py-3 rounded-lg font-semibold hover:from-purple-600 hover:to-indigo-600 disabled:from-gray-400 disabled:to-gray-400 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg"
+              variant="primary"
+              size="lg"
+              isLoading={isSubmitting}
+              isDisabled={!isExplanationValid()}
+              className="w-full"
             >
-              {isSubmitting ? (
-                <span className="flex items-center justify-center">
-                  <svg
-                    className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    ></circle>
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    ></path>
-                  </svg>
-                  Evaluating your explanation...
-                </span>
-              ) : (
-                'Submit My Explanation'
-              )}
-            </button>
+              {isSubmitting ? 'Evaluating your explanation...' : 'Submit explanation'}
+            </Button>
           </form>
-        </div>
+        </Card>
       )}
 
       {/* Evaluation Results */}
       {evaluation && (
-        <div className="bg-white rounded-lg shadow-md p-6 space-y-6">
-          <div className="border-b border-gray-200 pb-4">
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
+        <Card variant="elevated" padding="xl">
+          {/* Header */}
+          <div className="border-b border-border-default pb-4 mb-6">
+            <div className="inline-block px-3 py-1 bg-brand-blue/10 text-brand-blue rounded-full text-sm font-medium mb-3">
+              {evaluation.concept_name}
+            </div>
+            <h2 className="text-2xl font-bold text-text-heading mb-2">
               Evaluation Results
-            </h3>
-            <p className="text-sm text-gray-600">
-              Here&apos;s how well you explained: {evaluation.concept_name}
+            </h2>
+            <p className="text-base text-text-body">
+              Here's how well you explained the concept
             </p>
           </div>
 
-          {/* Score Grid */}
-          <div className="grid grid-cols-3 gap-4">
+          {/* Score Grid with visual indicators */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             {/* Coverage Score */}
-            <div className={`p-4 rounded-lg ${getMasteryBgColor(evaluation.coverage_score)}`}>
-              <div className="text-xs font-medium text-gray-600 mb-1">
+            <div className="p-5 rounded-xl border-2 border-border-default bg-bg-workspace">
+              <div className="text-xs font-semibold text-text-muted uppercase tracking-wide mb-2">
                 Coverage
               </div>
-              <div className={`text-2xl font-bold ${getMasteryColor(evaluation.coverage_score)}`}>
-                {Math.abs(evaluation.coverage_score - evaluation.average_score) < 0.0001 ? `${Math.round(evaluation.coverage_score * 100)}% coverage` : `${Math.round(evaluation.coverage_score * 100)}%`}
+              <div className="flex items-baseline gap-2 mb-2">
+                <span className={`text-3xl font-bold ${getMasteryTextColor(evaluation.coverage_score)}`}>
+                  {Math.round(evaluation.coverage_score * 100)}%
+                </span>
               </div>
-              <div className="text-xs text-gray-500 mt-1">
+              {/* Progress bar */}
+              <div className="w-full bg-border-default rounded-full h-2 mb-1">
+                <div
+                  className={`h-2 rounded-full transition-all duration-500 ${getMasteryBarColor(evaluation.coverage_score)}`}
+                  style={{ width: `${evaluation.coverage_score * 100}%` }}
+                />
+              </div>
+              <div className="text-xs text-text-muted">
                 Completeness
               </div>
             </div>
 
             {/* Reasoning Score */}
-            <div className={`p-4 rounded-lg ${getMasteryBgColor(evaluation.reasoning_score)}`}>
-              <div className="text-xs font-medium text-gray-600 mb-1">
+            <div className="p-5 rounded-xl border-2 border-border-default bg-bg-workspace">
+              <div className="text-xs font-semibold text-text-muted uppercase tracking-wide mb-2">
                 Reasoning
               </div>
-              <div className={`text-2xl font-bold ${getMasteryColor(evaluation.reasoning_score)}`}>
-                {Math.abs(evaluation.reasoning_score - evaluation.average_score) < 0.0001 ? `${Math.round(evaluation.reasoning_score * 100)}% reasoning` : `${Math.round(evaluation.reasoning_score * 100)}%`}
+              <div className="flex items-baseline gap-2 mb-2">
+                <span className={`text-3xl font-bold ${getMasteryTextColor(evaluation.reasoning_score)}`}>
+                  {Math.round(evaluation.reasoning_score * 100)}%
+                </span>
               </div>
-              <div className="text-xs text-gray-500 mt-1">
+              {/* Progress bar */}
+              <div className="w-full bg-border-default rounded-full h-2 mb-1">
+                <div
+                  className={`h-2 rounded-full transition-all duration-500 ${getMasteryBarColor(evaluation.reasoning_score)}`}
+                  style={{ width: `${evaluation.reasoning_score * 100}%` }}
+                />
+              </div>
+              <div className="text-xs text-text-muted">
                 Logic
               </div>
             </div>
 
             {/* Clarity Score */}
-            <div className={`p-4 rounded-lg ${getMasteryBgColor(evaluation.clarity_score)}`}>
-              <div className="text-xs font-medium text-gray-600 mb-1">
+            <div className="p-5 rounded-xl border-2 border-border-default bg-bg-workspace">
+              <div className="text-xs font-semibold text-text-muted uppercase tracking-wide mb-2">
                 Clarity
               </div>
-              <div className={`text-2xl font-bold ${getMasteryColor(evaluation.clarity_score)}`}>
-                {Math.abs(evaluation.clarity_score - evaluation.average_score) < 0.0001 ? `${Math.round(evaluation.clarity_score * 100)}% clarity` : `${Math.round(evaluation.clarity_score * 100)}%`}
+              <div className="flex items-baseline gap-2 mb-2">
+                <span className={`text-3xl font-bold ${getMasteryTextColor(evaluation.clarity_score)}`}>
+                  {Math.round(evaluation.clarity_score * 100)}%
+                </span>
               </div>
-              <div className="text-xs text-gray-500 mt-1">
+              {/* Progress bar */}
+              <div className="w-full bg-border-default rounded-full h-2 mb-1">
+                <div
+                  className={`h-2 rounded-full transition-all duration-500 ${getMasteryBarColor(evaluation.clarity_score)}`}
+                  style={{ width: `${evaluation.clarity_score * 100}%` }}
+                />
+              </div>
+              <div className="text-xs text-text-muted">
                 Communication
               </div>
             </div>
           </div>
 
-          {/* Average Score */}
-          <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-lg p-4">
-            <div className="flex items-center justify-between mb-4">
+          {/* Average Score Highlight */}
+          <div className="bg-brand-blue/5 border-2 border-brand-blue/20 rounded-xl p-5 mb-6">
+            <div className="flex items-center justify-between">
               <div>
-                <div className="text-sm font-medium text-gray-600 mb-1">
+                <div className="text-sm font-medium text-text-muted mb-1">
                   Average Score
                 </div>
-                <div className={`text-3xl font-bold ${getMasteryColor(evaluation.average_score)}`}>
+                <div className={`text-4xl font-bold ${getMasteryTextColor(evaluation.average_score)}`}>
                   {Math.round(evaluation.average_score * 100)}%
                 </div>
               </div>
-            </div>
-          </div>
-
-          {/* Mastery Update Section */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <h4 className="text-sm font-semibold text-gray-700 mb-3">
-              Mastery Update
-            </h4>
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <div className="text-xs font-medium text-gray-500 mb-1">Previous</div>
-                <div className={`text-xl font-bold ${getMasteryColor(masteryScore)}`}>
-                  {Math.round(masteryScore * 100)}%
-                </div>
-              </div>
-              <div>
-                <div className="text-xs font-medium text-gray-500 mb-1">Updated</div>
-                <div className={`text-xl font-bold ${getMasteryColor(evaluation.new_mastery_score)}`}>
-                  Updated to {Math.round(evaluation.new_mastery_score * 100)}%
-                </div>
-              </div>
-              <div>
-                <div className="text-xs font-medium text-gray-500 mb-1">Change</div>
-                <div className={`text-xl font-bold ${
-                  evaluation.new_mastery_score > masteryScore ? 'text-green-600' : 
-                  evaluation.new_mastery_score < masteryScore ? 'text-red-600' : 
-                  'text-gray-600'
-                }`}>
-                  {evaluation.new_mastery_score > masteryScore ? '+' : ''}
-                  {Math.round((evaluation.new_mastery_score - masteryScore) * 100)}%
-                </div>
-              </div>
-            </div>
-
-            {/* Mastery Progress Bar */}
-            <div className="mt-4">
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div
-                  className={`h-2 rounded-full transition-all duration-500 ${getMasteryBarColor(
-                    evaluation.new_mastery_score
-                  )}`}
-                  style={{ width: `${evaluation.new_mastery_score * 100}%` }}
-                />
+              <div className="w-24 h-24">
+                <svg viewBox="0 0 100 100" className="transform -rotate-90">
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="40"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="8"
+                    className="text-border-default"
+                  />
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="40"
+                    fill="none"
+                    strokeWidth="8"
+                    strokeDasharray={`${evaluation.average_score * 251.2} 251.2`}
+                    strokeLinecap="round"
+                    className={`${getMasteryStrokeColor(evaluation.average_score)} transition-all duration-500`}
+                  />
+                </svg>
               </div>
             </div>
           </div>
 
-          {/* Demonstrated Points */}
+          {/* Demonstrated Points (Strengths) */}
           {evaluation.demonstrated_points.length > 0 && (
-            <div>
-              <h4 className="text-sm font-semibold text-green-700 mb-3 flex items-center">
+            <div className="mb-6">
+              <h3 className="text-sm font-semibold text-mastery-mastered mb-3 flex items-center gap-2">
                 <svg
-                  className="h-5 w-5 mr-2"
+                  className="h-5 w-5"
                   fill="currentColor"
                   viewBox="0 0 20 20"
                 >
@@ -352,12 +390,12 @@ export default function TeachBackPanel({
                     clipRule="evenodd"
                   />
                 </svg>
-                What you explained well:
-              </h4>
-              <ul className="space-y-2 bg-green-50 rounded-lg p-4">
+                What you explained well
+              </h3>
+              <ul className="space-y-2 bg-mastery-mastered/10 border border-mastery-mastered/20 rounded-lg p-4">
                 {evaluation.demonstrated_points.map((point, index) => (
-                  <li key={index} className="text-sm text-gray-700 flex items-start">
-                    <span className="text-green-600 mr-2">✓</span>
+                  <li key={index} className="text-sm text-text-body flex items-start gap-2">
+                    <span className="text-mastery-mastered mt-0.5 flex-shrink-0">✓</span>
                     <span>{point}</span>
                   </li>
                 ))}
@@ -365,12 +403,12 @@ export default function TeachBackPanel({
             </div>
           )}
 
-          {/* Missing Points */}
+          {/* Missing Points (Gaps) */}
           {evaluation.missing_points.length > 0 && (
-            <div>
-              <h4 className="text-sm font-semibold text-orange-700 mb-3 flex items-center">
+            <div className="mb-6">
+              <h3 className="text-sm font-semibold text-mastery-learning mb-3 flex items-center gap-2">
                 <svg
-                  className="h-5 w-5 mr-2"
+                  className="h-5 w-5"
                   fill="currentColor"
                   viewBox="0 0 20 20"
                 >
@@ -380,12 +418,12 @@ export default function TeachBackPanel({
                     clipRule="evenodd"
                   />
                 </svg>
-                What could be added:
-              </h4>
-              <ul className="space-y-2 bg-orange-50 rounded-lg p-4">
+                What could be added
+              </h3>
+              <ul className="space-y-2 bg-mastery-learning/10 border border-mastery-learning/20 rounded-lg p-4">
                 {evaluation.missing_points.map((point, index) => (
-                  <li key={index} className="text-sm text-gray-700 flex items-start">
-                    <span className="text-orange-600 mr-2">⚠</span>
+                  <li key={index} className="text-sm text-text-body flex items-start gap-2">
+                    <span className="text-mastery-learning mt-0.5 flex-shrink-0">⚠</span>
                     <span>{point}</span>
                   </li>
                 ))}
@@ -395,10 +433,10 @@ export default function TeachBackPanel({
 
           {/* Misconceptions */}
           {evaluation.misconceptions.length > 0 && (
-            <div>
-              <h4 className="text-sm font-semibold text-red-700 mb-3 flex items-center">
+            <div className="mb-6">
+              <h3 className="text-sm font-semibold text-mastery-weak mb-3 flex items-center gap-2">
                 <svg
-                  className="h-5 w-5 mr-2"
+                  className="h-5 w-5"
                   fill="currentColor"
                   viewBox="0 0 20 20"
                 >
@@ -408,12 +446,12 @@ export default function TeachBackPanel({
                     clipRule="evenodd"
                   />
                 </svg>
-                Misconceptions to address:
-              </h4>
-              <ul className="space-y-2 bg-red-50 rounded-lg p-4">
+                Misconceptions to address
+              </h3>
+              <ul className="space-y-2 bg-mastery-weak/10 border border-mastery-weak/20 rounded-lg p-4">
                 {evaluation.misconceptions.map((misconception, index) => (
-                  <li key={index} className="text-sm text-gray-700 flex items-start">
-                    <span className="text-red-600 mr-2">✗</span>
+                  <li key={index} className="text-sm text-text-body flex items-start gap-2">
+                    <span className="text-mastery-weak mt-0.5 flex-shrink-0">✗</span>
                     <span>{misconception}</span>
                   </li>
                 ))}
@@ -422,44 +460,58 @@ export default function TeachBackPanel({
           )}
 
           {/* Action Buttons */}
-          <div className="pt-4 border-t border-gray-200">
+          <div className="pt-4 border-t border-border-default">
             {evaluation.should_continue_tutoring ? (
               <div className="space-y-3">
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                  <p className="text-sm text-yellow-800 font-medium">
-                    <strong>Almost there! Let&apos;s practice more.</strong>
+                <div className="bg-mastery-learning/10 border border-mastery-learning/30 rounded-lg p-4">
+                  <p className="text-sm text-text-heading font-medium">
+                    <strong>Almost there! Let&apos;s strengthen your understanding.</strong>
                   </p>
-                  <p className="text-sm text-yellow-700 mt-1">
-                    Your explanation shows you&apos;re making progress, but we should work through this a bit more to strengthen your understanding.
+                  <p className="text-sm text-text-body mt-1">
+                    Your explanation shows you&apos;re making progress. You can try explaining again or continue with more tutoring.
                   </p>
                 </div>
-                <button
-                  onClick={onContinue}
-                  className="w-full bg-gradient-to-r from-orange-500 to-red-500 text-white px-6 py-3 rounded-lg font-semibold hover:from-orange-600 hover:to-red-600 transition-all shadow-md hover:shadow-lg"
-                >
-                  Continue Tutoring
-                </button>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <Button
+                    variant="secondary"
+                    size="lg"
+                    onClick={handleRetry}
+                    className="w-full"
+                  >
+                    Try again
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="lg"
+                    onClick={onContinue}
+                    className="w-full"
+                  >
+                    Continue tutoring
+                  </Button>
+                </div>
               </div>
             ) : (
               <div className="space-y-3">
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                  <p className="text-sm text-green-800 font-medium">
+                <div className="bg-mastery-mastered/10 border border-mastery-mastered/30 rounded-lg p-4">
+                  <p className="text-sm text-text-heading font-medium">
                     <strong>Great work! You&apos;ve mastered it.</strong>
                   </p>
-                  <p className="text-sm text-green-700 mt-1">
-                    Your explanation shows solid understanding. Let&apos;s move forward in your learning journey.
+                  <p className="text-sm text-text-body mt-1">
+                    Your explanation shows solid understanding. Ready to move forward.
                   </p>
                 </div>
-                <button
+                <Button
+                  variant="lime"
+                  size="lg"
                   onClick={onContinue}
-                  className="w-full bg-gradient-to-r from-green-500 to-emerald-500 text-white px-6 py-3 rounded-lg font-semibold hover:from-green-600 hover:to-emerald-600 transition-all shadow-md hover:shadow-lg"
+                  className="w-full"
                 >
-                  Continue Learning
-                </button>
+                  Continue
+                </Button>
               </div>
             )}
           </div>
-        </div>
+        </Card>
       )}
     </div>
   );

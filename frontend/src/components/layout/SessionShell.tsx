@@ -34,7 +34,7 @@ export const SessionShell: React.FC<SessionShellProps> = ({
   const hasActiveSession = sessionId && sessionId.length > 0;
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden">
+    <div className="h-screen flex flex-col overflow-hidden w-full">
       {/* Header */}
       <Header
         sessionId={hasActiveSession ? sessionId : undefined}
@@ -44,7 +44,7 @@ export const SessionShell: React.FC<SessionShellProps> = ({
       />
 
       {/* Main content area with optional sidebar */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden w-full min-w-0">
         {/* Sidebar - only show if in active session */}
         {hasActiveSession && (
           <Sidebar
@@ -55,7 +55,7 @@ export const SessionShell: React.FC<SessionShellProps> = ({
         )}
 
         {/* Main workspace */}
-        <main className="flex-1 overflow-auto bg-bg-workspace">
+        <main className="flex-1 overflow-auto bg-bg-workspace w-full min-w-0">
           {/* Concept network background pattern */}
           <div 
             className="min-h-full w-full"
@@ -68,7 +68,7 @@ export const SessionShell: React.FC<SessionShellProps> = ({
             }}
           >
             {/* Content container with padding */}
-            <div className="container mx-auto px-4 py-6 md:px-6 md:py-8 max-w-7xl">
+            <div className="container mx-auto px-4 py-6 md:px-6 md:py-8 max-w-[1800px] w-full">
               {children}
             </div>
           </div>
