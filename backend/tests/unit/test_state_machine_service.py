@@ -290,6 +290,8 @@ class TestStateMachineService:
         self, db_session: AsyncSession, session_with_graph
     ):
         """Test that completed_at timestamp is set on completion."""
+        from datetime import timezone
+        
         session, target, prereqs = session_with_graph
         session.status = "teachback"
         
@@ -300,13 +302,13 @@ class TestStateMachineService:
         
         service = StateMachineService(db_session)
         
-        before_time = datetime.utcnow()
+        before_time = datetime.now(timezone.utc)
         updated_session = await service.transition_after_teachback(
             session_id=session.id,
             teachback_passed=True,
             gap_resolved=True,
         )
-        after_time = datetime.utcnow()
+        after_time = datetime.now(timezone.utc)
         
         assert updated_session.completed_at is not None
         assert before_time <= updated_session.completed_at <= after_time
