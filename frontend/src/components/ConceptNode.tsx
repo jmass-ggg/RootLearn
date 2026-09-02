@@ -20,10 +20,10 @@ function ConceptNode({ data }: { data: ConceptNodeData }) {
   return (
     <div
       className={`
-        px-4 py-3 rounded-lg border-2 shadow-md bg-white
+        px-5 py-4 rounded-2xl border-2 shadow-md bg-white text-center
         transition-all duration-200
         hover:shadow-lg hover:scale-105
-        ${isRootGap ? 'border-red-500 ring-2 ring-red-300' : 'border-gray-300'}
+        ${isRootGap ? 'border-[#d2e90d] ring-4 ring-[#d2e90d]/20' : concept.is_target ? 'border-[#1463ff] ring-4 ring-[#1463ff]/10' : 'border-[#dfe6ef]'}
       `}
       style={{
         minWidth: '180px',
@@ -37,14 +37,15 @@ function ConceptNode({ data }: { data: ConceptNodeData }) {
         style={{ background: color }}
       />
 
-      {/* Concept Name */}
-      <div className="font-semibold text-sm mb-2 text-gray-900 break-words">
+      {concept.is_target && <div className="mb-2 text-xs font-bold uppercase tracking-wide text-[#1463ff]">Target</div>}
+      {isRootGap && <div className="mb-2 text-xs font-bold uppercase tracking-wide text-[#839300]">Root Gap</div>}
+      <div className="mb-3 break-words text-base font-semibold text-[#10213d]">
         {concept.name}
       </div>
 
       {/* Mastery Bar */}
       <div className="space-y-1">
-        <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#e8edf3]">
           <div
             className="h-full rounded-full transition-all duration-300"
             style={{
@@ -53,25 +54,11 @@ function ConceptNode({ data }: { data: ConceptNodeData }) {
             }}
           />
         </div>
-        <div className="text-xs text-gray-600 flex justify-between items-center">
-          <span>{concept.status}</span>
+        <div className="flex items-center justify-between text-xs text-[#718096]">
+          <span className="capitalize">{concept.status}</span>
           <span className="font-medium">{masteryPercentage}%</span>
         </div>
       </div>
-
-      {/* Root Gap Indicator */}
-      {isRootGap && (
-        <div className="mt-2 text-xs font-medium text-red-600 text-center">
-          Root Gap
-        </div>
-      )}
-
-      {/* Target Indicator */}
-      {concept.is_target && (
-        <div className="mt-2 text-xs font-medium text-blue-600 text-center">
-          Target
-        </div>
-      )}
 
       <Handle
         type="source"

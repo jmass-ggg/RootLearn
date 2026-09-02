@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { RootGapResult } from '@/types/root-gap';
+import { RootGapResult } from "@/types/root-gap";
 
 interface RootGapCardProps {
   rootGap: RootGapResult | null;
@@ -8,143 +8,50 @@ interface RootGapCardProps {
   onFixGap: () => void;
 }
 
-/**
- * RootGapCard component
- * Displays identified root gap concept with explanation and action button
- */
-export default function RootGapCard({
-  rootGap,
-  isLoading,
-  onFixGap,
-}: RootGapCardProps) {
+export default function RootGapCard({ rootGap, isLoading, onFixGap }: RootGapCardProps) {
   if (isLoading) {
-    return (
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <div className="flex items-center justify-center h-32">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
-        </div>
-      </div>
-    );
+    return <div className="soft-card flex min-h-[360px] items-center justify-center"><span className="h-12 w-12 animate-spin rounded-full border-4 border-[#c9d9ff] border-t-[#1463ff]" /><span className="sr-only">Loading root gap</span></div>;
   }
-
   if (!rootGap) {
-    return (
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <div className="flex items-center justify-center h-32 text-gray-500">
-          <p>No root gap identified yet</p>
-        </div>
-      </div>
-    );
+    return <div className="soft-card flex min-h-[280px] items-center justify-center p-8 text-center text-[#718096]">No root gap identified yet</div>;
   }
 
-  const { root_gap: gap, message } = rootGap;
-
-  const getMasteryColor = (score: number): string => {
-    if (score >= 0.85) return 'text-green-600';
-    if (score >= 0.70) return 'text-lime-600';
-    if (score >= 0.40) return 'text-yellow-600';
-    return 'text-red-600';
-  };
-
-  const getMasteryBgColor = (score: number): string => {
-    if (score >= 0.85) return 'bg-green-100 border-green-300';
-    if (score >= 0.70) return 'bg-lime-100 border-lime-300';
-    if (score >= 0.40) return 'bg-yellow-100 border-yellow-300';
-    return 'bg-red-100 border-red-300';
-  };
-
-  const getConfidenceColor = (confidence: number): string => {
-    if (confidence >= 0.80) return 'text-blue-600';
-    if (confidence >= 0.60) return 'text-indigo-600';
-    return 'text-purple-600';
-  };
-
+  const gap = rootGap.root_gap;
   return (
-    <div className="bg-white rounded-lg shadow-lg p-6 border-2 border-orange-300">
-      {/* Header */}
-      <div className="mb-4">
-        <div className="flex items-center mb-2">
-          <div className="w-3 h-3 bg-orange-500 rounded-full mr-2 animate-pulse"></div>
-          <h3 className="text-lg font-semibold text-gray-900">
-            Root Gap Identified
-          </h3>
+    <article className="soft-card overflow-hidden p-7 sm:p-10">
+      <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-start">
+        <div>
+          <p className="text-sm font-bold uppercase tracking-[0.1em] text-[#718096]">Root Gap Identified</p>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <h2 className="text-3xl font-bold">{gap.concept_name}</h2>
+            <span className="rounded-full border-2 border-[#d2e90d] px-3 py-1 text-sm font-semibold text-[#1463ff]">Root concept</span>
+          </div>
         </div>
-        <p className="text-sm text-gray-600">{message}</p>
+        <span className="flex h-16 w-16 items-center justify-center rounded-2xl border-2 border-[#bcd0ff] bg-[#f1f6ff] text-3xl text-[#1463ff]">▱</span>
       </div>
 
-      {/* Concept Name */}
-      <div className="mb-6">
-        <div className="text-2xl font-bold text-gray-900 mb-2">
-          {gap.concept_name}
-        </div>
-        <div className="text-sm text-gray-500">
-          This is blocking your understanding
-        </div>
+      <p className="mt-2 text-sm text-[#718096]">This is blocking your understanding</p>
+      <p className="mt-7 max-w-4xl text-lg leading-8 text-[#30415d]">{rootGap.message}</p>
+
+      <div className="mt-7 rounded-2xl border border-[#dce5ef] bg-[#f6f8fb] p-6">
+        <h3 className="font-bold"><span className="mr-2 text-[#20a572]">✣</span>Why this gap matters:</h3>
+        <ul className="mt-3 space-y-2 text-[#68758c]">{gap.reasons.map((reason) => <li key={reason} className="flex gap-2 leading-7"><span aria-hidden="true">•</span><span>{reason}</span></li>)}</ul>
       </div>
 
-      {/* Metrics Grid */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
-        {/* Mastery */}
-        <div className={`p-3 rounded-lg border ${getMasteryBgColor(gap.mastery)}`}>
-          <div className="text-xs font-medium text-gray-600 mb-1">
-            Mastery
-          </div>
-          <div className={`text-xl font-bold ${getMasteryColor(gap.mastery)}`}>
-            {Math.round(gap.mastery * 100)}%
-          </div>
-        </div>
-
-        {/* Confidence */}
-        <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-          <div className="text-xs font-medium text-gray-600 mb-1">
-            Confidence
-          </div>
-          <div className={`text-xl font-bold ${getConfidenceColor(gap.confidence)}`}>
-            {Math.round(gap.confidence * 100)}%
-          </div>
-        </div>
-
-        {/* Gap Score */}
-        <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
-          <div className="text-xs font-medium text-gray-600 mb-1">
-            Gap Score
-          </div>
-          <div className="text-xl font-bold text-orange-600">
-            {gap.gap_score.toFixed(2)}
-          </div>
-        </div>
+      <div className="mt-7 grid grid-cols-3 gap-3">
+        <Metric label="Mastery" value={`${Math.round(gap.mastery * 100)}%`} color="text-[#dc4b50]" />
+        <Metric label="Confidence" value={`${Math.round(gap.confidence * 100)}%`} color="text-[#1463ff]" />
+        <Metric label="Gap Score" value={gap.gap_score.toFixed(2)} color="text-[#d39122]" />
       </div>
 
-      {/* Explanation Reasons */}
-      <div className="mb-6">
-        <h4 className="text-sm font-semibold text-gray-700 mb-3">
-          Why this gap matters:
-        </h4>
-        <ul className="space-y-2">
-          {gap.reasons.map((reason, index) => (
-            <li
-              key={index}
-              className="flex items-start text-sm text-gray-700"
-            >
-              <span className="inline-block w-1.5 h-1.5 bg-orange-500 rounded-full mt-1.5 mr-2 flex-shrink-0"></span>
-              <span>{reason}</span>
-            </li>
-          ))}
-        </ul>
+      <div className="mt-8 flex flex-col items-center justify-between gap-4 border-t border-[#e1e7ef] pt-7 sm:flex-row">
+        <p className="text-sm text-[#718096]">Let&apos;s work through this concept together using Socratic guidance.</p>
+        <button type="button" aria-label="Fix This Gap" onClick={onFixGap} className="w-full rounded-xl bg-[#1463ff] px-6 py-3.5 font-semibold text-white transition hover:bg-[#0754e8] sm:w-auto">Start guided learning →</button>
       </div>
-
-      {/* Action Button */}
-      <button
-        onClick={onFixGap}
-        className="w-full bg-gradient-to-r from-orange-500 to-red-500 text-white px-6 py-3 rounded-lg font-semibold hover:from-orange-600 hover:to-red-600 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
-      >
-        Fix This Gap
-      </button>
-
-      {/* Helper Text */}
-      <p className="text-xs text-center text-gray-500 mt-3">
-        Let&apos;s work through this concept together using Socratic guidance
-      </p>
-    </div>
+    </article>
   );
+}
+
+function Metric({ label, value, color }: { label: string; value: string; color: string }) {
+  return <div className="rounded-xl border border-[#dfe6ef] bg-white p-4"><p className="text-xs font-semibold uppercase tracking-wide text-[#8591a4]">{label}</p><p className={`mt-1 text-xl font-bold ${color}`}>{value}</p></div>;
 }

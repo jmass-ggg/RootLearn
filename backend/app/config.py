@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     # AI Provider Configuration
     ai_provider: Literal["openai", "anthropic", "gemini"] = "openai"
     openai_api_key: str | None = None
+    openai_base_url: str | None = None  # For OpenRouter or custom endpoints
     anthropic_api_key: str | None = None
     google_api_key: str | None = None
     openai_model: str = "gpt-4"

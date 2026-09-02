@@ -36,18 +36,24 @@ class OpenAIProvider:
         self,
         api_key: str,
         model: str = "gpt-4",
+        base_url: str | None = None,
         timeout: float = 45.0,
         max_retries: int = 2,
     ):
         """Initialize OpenAI provider.
         
         Args:
-            api_key: OpenAI API key
+            api_key: OpenAI API key (or OpenRouter key)
             model: Model identifier (default: gpt-4)
+            base_url: Custom base URL (for OpenRouter: https://openrouter.ai/api/v1)
             timeout: Request timeout in seconds
             max_retries: Maximum number of retry attempts
         """
-        self.client = AsyncOpenAI(api_key=api_key, timeout=timeout)
+        self.client = AsyncOpenAI(
+            api_key=api_key,
+            base_url=base_url,
+            timeout=timeout
+        )
         self.model = model
         self.max_retries = max_retries
 

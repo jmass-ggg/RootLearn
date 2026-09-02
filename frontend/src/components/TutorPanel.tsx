@@ -135,17 +135,13 @@ export default function TutorPanel({
   }
 
   return (
-    <div className="flex flex-col h-full bg-white rounded-lg shadow-md">
+    <div className="flex h-full min-h-[760px] flex-col bg-white">
       {/* Header with concept name and mastery bar - Responsive */}
-      <div className="p-3 sm:p-4 border-b border-gray-200">
+      <div className="border-b border-[#e1e7ef] p-6 sm:p-8">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
           <div className="flex-1 min-w-0">
-            <h3 className="text-base sm:text-lg font-semibold text-gray-900 truncate">
-              Learning: {currentConcept.name}
-            </h3>
-            <p className="text-xs sm:text-sm text-gray-500">
-              Socratic tutoring in progress
-            </p>
+            <p className="text-xs font-bold uppercase tracking-[.1em] text-[#718096]">Current objective</p>
+            <h3 className="mt-2 truncate text-xl font-semibold text-[#10213d]"><span className="mr-2 text-[#1463ff]">◎</span>Understand {currentConcept.name}</h3>
           </div>
           <div className="text-left sm:text-right flex-shrink-0">
             <div className={`text-xl sm:text-2xl font-bold ${getMasteryColor(masteryScore)}`} aria-label={`Mastery: ${Math.round(masteryScore * 100)} percent`}>
@@ -158,7 +154,7 @@ export default function TutorPanel({
         </div>
 
         {/* Mastery progress bar */}
-        <div className="w-full bg-gray-200 rounded-full h-2" role="progressbar" aria-valuenow={masteryScore * 100} aria-valuemin={0} aria-valuemax={100} aria-label="Mastery progress">
+        <div className="h-2 w-full rounded-full bg-[#e7ecf2]" role="progressbar" aria-valuenow={masteryScore * 100} aria-valuemin={0} aria-valuemax={100} aria-label="Mastery progress">
           <div
             className={`h-2 rounded-full transition-all duration-500 ${getMasteryBgColor(
               masteryScore
@@ -170,14 +166,14 @@ export default function TutorPanel({
 
       {/* Chat messages - Responsive */}
       <div 
-        className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-4"
+        className="min-h-[430px] flex-1 space-y-4 overflow-y-auto bg-[#fbfcfe] p-5 sm:p-8"
         role="log"
         aria-live="polite"
         aria-label="Tutoring conversation"
       >
         {messages.length === 0 ? (
-          <div className="flex items-center justify-center h-full text-gray-400">
-            <p className="text-sm sm:text-base text-center px-4">Start the conversation by asking a question...</p>
+          <div className="flex h-full items-center justify-center text-[#8b96a8]">
+            <div className="max-w-md text-center"><span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#eaf1ff] text-xl text-[#1463ff]">○</span><p className="mt-4 px-4 text-base">Start by sharing how you currently think about {currentConcept.name}. The tutor will guide you with questions.</p></div>
           </div>
         ) : (
           messages.map((message) => (
@@ -190,8 +186,8 @@ export default function TutorPanel({
               <div
                 className={`max-w-[85%] sm:max-w-[80%] rounded-lg px-3 sm:px-4 py-2 sm:py-3 ${
                   message.role === 'user'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-900'
+                    ? 'bg-[#1463ff] text-white'
+                    : 'border border-[#dfe6ef] bg-white text-[#10213d]'
                 }`}
                 role="article"
                 aria-label={`${message.role === 'user' ? 'Your message' : 'Tutor message'}`}
@@ -219,22 +215,25 @@ export default function TutorPanel({
       </div>
 
       {/* Input area - Responsive */}
-      <div className="p-3 sm:p-4 border-t border-gray-200 space-y-3">
-        <form onSubmit={handleSubmit} className="flex gap-2" aria-label="Send tutor message">
+      <div className="space-y-3 border-t border-[#e1e7ef] p-5 sm:p-8">
+        <div className="flex flex-wrap gap-2">
+          {["I need a hint", "Show another example", "Let me reason it out"].map((suggestion) => <button key={suggestion} type="button" onClick={() => setInput(suggestion)} className="rounded-full border border-[#dce5ef] bg-white px-3 py-1.5 text-sm text-[#536178] hover:border-[#1463ff] hover:text-[#1463ff]">{suggestion}</button>)}
+        </div>
+        <form onSubmit={handleSubmit} className="flex gap-2 rounded-2xl border border-[#dce5ef] bg-white p-2" aria-label="Send tutor message">
           <input
             type="text"
             name="tutor-message"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Type your response or question..."
-            className="flex-1 px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base transition-shadow"
+            className="min-w-0 flex-1 border-0 bg-transparent px-3 py-2 text-sm outline-none sm:text-base"
             disabled={isSending}
             aria-label="Your message"
           />
           <button
             type="submit"
             disabled={isSending || !input.trim()}
-            className="px-4 sm:px-6 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors text-sm sm:text-base flex-shrink-0"
+            className="h-11 w-11 flex-shrink-0 rounded-xl bg-[#1463ff] font-medium text-white transition hover:bg-[#0754e8] disabled:cursor-not-allowed disabled:bg-[#aebbd0]"
             aria-label={isSending ? 'Sending message, please wait' : 'Send message'}
           >
             {isSending ? (
@@ -263,7 +262,7 @@ export default function TutorPanel({
                 <span className="sr-only">Sending</span>
               </span>
             ) : (
-              'Send'
+              '➤'
             )}
           </button>
         </form>
@@ -272,7 +271,7 @@ export default function TutorPanel({
         <button
           onClick={handleExplainBack}
           disabled={isSending || isTransitioning}
-          className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-lg font-semibold hover:from-purple-600 hover:to-indigo-600 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:from-gray-400 disabled:to-gray-400 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg text-sm sm:text-base"
+          className="w-full rounded-xl bg-[#062b45] px-4 py-3 font-semibold text-white transition hover:bg-[#0b3b5d] disabled:cursor-not-allowed disabled:bg-[#aebbd0] sm:w-auto"
           aria-label="Request to explain concept back"
         >
           {isTransitioning ? (
@@ -303,7 +302,7 @@ export default function TutorPanel({
           ) : (
             <span className="flex items-center justify-center gap-2">
               <span aria-hidden="true">✓</span>
-              <span>I'm ready to explain it back</span>
+              <span>I&apos;m ready to explain it back</span>
             </span>
           )}
         </button>

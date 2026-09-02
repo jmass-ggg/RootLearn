@@ -1,21 +1,29 @@
 """Session management API endpoints."""
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import get_db
+from app.ai.factory import get_ai_provider
+from app.ai.logging_service import AIRunLogger
+from app.ai.validated_ai_service import ValidatedAIService
+from app.database import get_db, get_db_context
 from app.logging_config import get_logger, get_request_id
+from app.models import LearningSession
 from app.schemas.session import (
     ErrorResponse,
     SessionCreateRequest,
     SessionResponse,
 )
+from app.services.concept_service import ConceptService
+from app.services.graph_service import GraphService
 from app.services.session_service import (
     SessionNotFoundError,
     SessionOwnershipError,
     SessionService,
 )
+from app.services.state_machine_service import StateMachineService
 
 logger = get_logger(__name__)
 router = APIRouter()
@@ -24,6 +32,59 @@ router = APIRouter()
 def get_session_service(db: AsyncSession = Depends(get_db)) -> SessionService:
     """Dependency to get session service."""
     return SessionService(db)
+
+
+async def analyze_session_background(session_id: uuid.UUID, prompt: str) -> None:
+    """Identify the target, build its graph, and advance the session state."""
+    try:
+        async with get_db_context() as db:
+            logger.info("starting_background_analysis", session_id=str(session_id))
+
+            provider = get_ai_provider()
+            ai_service = ValidatedAIService(provider, AIRunLogger(db))
+
+            target_concept = await ConceptService(db, ai_service).analyze_target_concept(
+                session_id=session_id,
+                prompt=prompt,
+            )
+            logger.info(
+                "target_concept_identified",
+                session_id=str(session_id),
+                concept_slug=target_concept.slug,
+            )
+
+            graph = await GraphService(db, ai_service).generate_graph(session_id)
+            await StateMachineService(db).transition_to_diagnosing(session_id)
+
+            logger.info(
+                "background_analysis_completed",
+                session_id=str(session_id),
+                node_count=len(graph.nodes),
+                edge_count=len(graph.edges),
+            )
+    except Exception as exc:
+        logger.exception(
+            "background_analysis_failed",
+            session_id=str(session_id),
+            error=str(exc),
+            error_type=type(exc).__name__,
+        )
+
+        # A failed analysis must be terminal; otherwise the client polls forever.
+        try:
+            async with get_db_context() as db:
+                result = await db.execute(
+                    select(LearningSession).where(LearningSession.id == session_id)
+                )
+                session = result.scalar_one_or_none()
+                if session is not None and session.status == "analyzing":
+                    session.status = "abandoned"
+                    await db.flush()
+        except Exception:
+            logger.exception(
+                "background_analysis_failure_state_update_failed",
+                session_id=str(session_id),
+            )
 
 
 @router.post(
@@ -38,13 +99,13 @@ def get_session_service(db: AsyncSession = Depends(get_db)) -> SessionService:
 )
 async def create_session(
     request: SessionCreateRequest,
+    background_tasks: BackgroundTasks,
     service: SessionService = Depends(get_session_service),
 ):
-    """Create a new learning session.
+    """Create a new learning session and start analysis.
     
-    Creates a new session with "analyzing" status. The system will use
-    the provided prompt to identify the target concept and build a
-    prerequisite graph.
+    Creates a new session with "analyzing" status and triggers background
+    analysis to identify the target concept and build a prerequisite graph.
     
     Requirements: 18.1, 18.6
     """
@@ -55,6 +116,7 @@ async def create_session(
             prompt_length=len(request.prompt),
         )
         
+        # Create session
         session = await service.create_session(
             user_id=request.user_id,
             prompt=request.prompt,
@@ -66,6 +128,12 @@ async def create_session(
             user_id=str(request.user_id),
         )
         
+        background_tasks.add_task(
+            analyze_session_background,
+            session.id,
+            session.original_prompt,
+        )
+
         return SessionResponse.model_validate(session)
         
     except Exception as e:

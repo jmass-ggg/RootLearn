@@ -3,22 +3,40 @@
 @tailwind utilities;
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f4f7fb;
+  --foreground: #10213d;
+  --navy: #052f4e;
+  --blue: #1463ff;
+  --lime: #d2e90d;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
 body {
   color: var(--foreground);
   background: var(--background);
   font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+  text-rendering: optimizeLegibility;
 }
+
+button, input, textarea { font: inherit; }
+button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visible { outline: 3px solid rgba(20, 99, 255, .28); outline-offset: 2px; }
+
+.brand-mark { position: relative; display: inline-flex; width: 40px; height: 40px; flex: 0 0 40px; align-items: center; justify-content: center; overflow: hidden; border-radius: 12px; background: #1463ff; }
+.brand-mark::before, .brand-mark::after { position: absolute; content: ""; width: 15px; height: 2px; background: #fff; transform-origin: left center; }
+.brand-mark::before { left: 12px; top: 13px; transform: rotate(55deg); }
+.brand-mark::after { left: 12px; bottom: 12px; transform: rotate(-45deg); }
+.brand-mark i, .brand-mark b, .brand-mark em { position: absolute; z-index: 1; width: 7px; height: 7px; border: 2px solid #fff; border-radius: 999px; background: #1463ff; }
+.brand-mark i { left: 8px; top: 8px; }
+.brand-mark b { right: 8px; top: 18px; }
+.brand-mark em { left: 8px; bottom: 7px; }
+
+.network-pattern { position: relative; isolation: isolate; overflow: hidden; }
+.network-pattern::before { position: absolute; inset: 0; z-index: -2; content: ""; opacity: .35; background-image: radial-gradient(circle at 9% 28%, rgba(210,233,13,.72) 0 3px, transparent 4px), radial-gradient(circle at 18% 42%, rgba(71,135,255,.65) 0 3px, transparent 4px), radial-gradient(circle at 82% 31%, rgba(210,233,13,.6) 0 3px, transparent 4px), radial-gradient(circle at 92% 22%, rgba(71,135,255,.65) 0 4px, transparent 5px), linear-gradient(28deg, transparent 30%, rgba(93,148,197,.14) 30.3%, transparent 30.7%), linear-gradient(152deg, transparent 57%, rgba(93,148,197,.12) 57.2%, transparent 57.5%), linear-gradient(74deg, transparent 43%, rgba(93,148,197,.1) 43.2%, transparent 43.5%); background-size: auto, auto, auto, auto, 280px 210px, 330px 260px, 250px 230px; }
+.network-pattern::after { position: absolute; inset: 0; z-index: -1; content: ""; background: radial-gradient(circle at 50% 38%, transparent 0, rgba(5,47,78,.04) 58%, rgba(5,47,78,.18) 100%); }
+.workspace-pattern { background-color: #f4f7fb; background-image: radial-gradient(circle at 12% 26%, rgba(210,233,13,.35) 0 5px, transparent 6px), radial-gradient(circle at 84% 22%, rgba(20,99,255,.16) 0 6px, transparent 7px), linear-gradient(42deg, transparent 48%, rgba(179,196,217,.19) 48.2%, rgba(179,196,217,.19) 48.5%, transparent 48.8%); background-size: auto, auto, 520px 440px; }
+.soft-card { border: 1px solid #e0e7f0; border-radius: 20px; background: #fff; box-shadow: 0 12px 35px rgba(16,33,61,.07); }
 
 @layer utilities {
   .text-balance {

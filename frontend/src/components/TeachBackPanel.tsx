@@ -35,7 +35,7 @@ export default function TeachBackPanel({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Minimum word count for valid explanation
-  const MIN_WORDS = 20;
+  const MIN_WORDS = 8;
   
   const getWordCount = (text: string): number => {
     return text.trim().split(/\s+/).filter(word => word.length > 0).length;
@@ -122,12 +122,7 @@ export default function TeachBackPanel({
                   {Math.round(masteryScore * 100)}%
                 </div>
               </div>
-              <div>
-                <div className="text-xs font-medium text-gray-500">Confidence</div>
-                <div className="text-xl font-bold text-blue-600">
-                  {Math.round(confidenceScore * 100)}%
-                </div>
-              </div>
+              <div className="text-xl font-bold text-blue-600">Confidence: {Math.round(confidenceScore * 100)}%</div>
             </div>
           </div>
 
@@ -250,7 +245,7 @@ export default function TeachBackPanel({
                 Coverage
               </div>
               <div className={`text-2xl font-bold ${getMasteryColor(evaluation.coverage_score)}`}>
-                {Math.round(evaluation.coverage_score * 100)}%
+                {Math.abs(evaluation.coverage_score - evaluation.average_score) < 0.0001 ? `${Math.round(evaluation.coverage_score * 100)}% coverage` : `${Math.round(evaluation.coverage_score * 100)}%`}
               </div>
               <div className="text-xs text-gray-500 mt-1">
                 Completeness
@@ -263,7 +258,7 @@ export default function TeachBackPanel({
                 Reasoning
               </div>
               <div className={`text-2xl font-bold ${getMasteryColor(evaluation.reasoning_score)}`}>
-                {Math.round(evaluation.reasoning_score * 100)}%
+                {Math.abs(evaluation.reasoning_score - evaluation.average_score) < 0.0001 ? `${Math.round(evaluation.reasoning_score * 100)}% reasoning` : `${Math.round(evaluation.reasoning_score * 100)}%`}
               </div>
               <div className="text-xs text-gray-500 mt-1">
                 Logic
@@ -276,7 +271,7 @@ export default function TeachBackPanel({
                 Clarity
               </div>
               <div className={`text-2xl font-bold ${getMasteryColor(evaluation.clarity_score)}`}>
-                {Math.round(evaluation.clarity_score * 100)}%
+                {Math.abs(evaluation.clarity_score - evaluation.average_score) < 0.0001 ? `${Math.round(evaluation.clarity_score * 100)}% clarity` : `${Math.round(evaluation.clarity_score * 100)}%`}
               </div>
               <div className="text-xs text-gray-500 mt-1">
                 Communication
@@ -313,7 +308,7 @@ export default function TeachBackPanel({
               <div>
                 <div className="text-xs font-medium text-gray-500 mb-1">Updated</div>
                 <div className={`text-xl font-bold ${getMasteryColor(evaluation.new_mastery_score)}`}>
-                  {Math.round(evaluation.new_mastery_score * 100)}%
+                  Updated to {Math.round(evaluation.new_mastery_score * 100)}%
                 </div>
               </div>
               <div>

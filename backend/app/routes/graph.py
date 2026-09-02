@@ -1,15 +1,18 @@
 """Graph generation and retrieval API endpoints."""
 import uuid
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.factory import get_ai_service
-from app.ai.schemas import PrerequisiteEdge, PrerequisiteGraphOutput, PrerequisiteNode
+from app.ai.schemas import PrerequisiteEdge, PrerequisiteNode
 from app.ai.validated_ai_service import ValidatedAIService
 from app.database import get_db
 from app.logging_config import get_logger, get_request_id
+from app.models import Concept, ConceptEdge
 from app.schemas.session import ErrorResponse
 from app.services.graph_service import GraphService
 from app.services.session_service import SessionNotFoundError, SessionOwnershipError, SessionService
@@ -37,6 +40,43 @@ class GraphResponse(BaseModel):
     model_config = {
         "from_attributes": True
     }
+
+
+class StoredConceptResponse(BaseModel):
+    """A persisted concept with mastery data used by the frontend graph."""
+
+    id: uuid.UUID
+    slug: str
+    name: str
+    description: str
+    is_target: bool
+    mastery_score: float
+    confidence_score: float
+    status: str
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class StoredEdgeResponse(BaseModel):
+    """A persisted graph edge whose endpoints use concept UUIDs."""
+
+    id: uuid.UUID
+    source_concept_id: uuid.UUID
+    target_concept_id: uuid.UUID
+    importance_weight: float
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class StoredGraphResponse(BaseModel):
+    """Stored graph representation consumed by the React Flow UI."""
+
+    concepts: list[StoredConceptResponse]
+    edges: list[StoredEdgeResponse]
+    root_gap_id: uuid.UUID | None = None
 
 
 def get_graph_service(
@@ -171,7 +211,7 @@ async def generate_graph(
 
 @router.get(
     "/sessions/{session_id}/graph",
-    response_model=GraphResponse,
+    response_model=StoredGraphResponse,
     responses={
         200: {"description": "Graph retrieved successfully"},
         404: {"description": "Session or graph not found", "model": ErrorResponse},
@@ -249,11 +289,27 @@ async def get_graph(
             node_count=len(graph_output.nodes),
             edge_count=len(graph_output.edges),
         )
-        
-        return GraphResponse(
-            target_slug=graph_output.target_slug,
-            nodes=graph_output.nodes,
-            edges=graph_output.edges,
+
+        concept_result = await graph_service.db.execute(
+            select(Concept)
+            .where(Concept.session_id == session_id)
+            .order_by(Concept.created_at.asc())
+        )
+        edge_result = await graph_service.db.execute(
+            select(ConceptEdge)
+            .where(ConceptEdge.session_id == session_id)
+            .order_by(ConceptEdge.created_at.asc())
+        )
+
+        return StoredGraphResponse(
+            concepts=[
+                StoredConceptResponse.model_validate(concept)
+                for concept in concept_result.scalars().all()
+            ],
+            edges=[
+                StoredEdgeResponse.model_validate(edge)
+                for edge in edge_result.scalars().all()
+            ],
         )
         
     except HTTPException:

@@ -87,7 +87,11 @@ class ConceptService:
         )
         
         self.db.add(concept)
-        
+
+        # SQLAlchemy applies the UUID default while flushing the INSERT, so the
+        # concept must be flushed before its ID can be stored on the session.
+        await self.db.flush()
+
         # Update session with normalized topic and target concept reference
         session.normalized_topic = concept_output.domain
         session.target_concept_id = concept.id

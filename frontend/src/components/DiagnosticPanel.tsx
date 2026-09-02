@@ -86,27 +86,28 @@ export default function DiagnosticPanel({
             d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
           />
         </svg>
-        <p className="text-center">No diagnostic question available yet</p>
+        <p className="text-center">No diagnostic question available</p>
         <p className="text-sm text-gray-400 mt-2">Assessment will begin shortly</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4 sm:space-y-6">
+    <div className="space-y-6">
       {/* Question Section - Responsive */}
-      <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
-        <div className="mb-4">
-          <div className="text-sm font-medium text-gray-500 mb-1">
-            Testing: <span className="text-gray-900">{question.concept_name}</span>
+      <div>
+        <div className="mb-7">
+          <div className="flex items-center justify-between gap-4">
+            <span className="rounded-full bg-[#eaf1ff] px-3 py-1.5 text-sm font-semibold text-[#1463ff]">{question.concept_name}</span>
+            <span className="text-sm text-[#718096]">Question in progress</span>
           </div>
-          <div className="text-xs text-gray-400">
-            Difficulty: {Math.round(question.difficulty * 100)}%
-          </div>
+          <div className="mt-3 flex gap-2" aria-hidden="true"><i className="h-1.5 flex-1 rounded-full bg-[#1463ff]" /><i className="h-1.5 flex-1 rounded-full bg-[#1463ff]" /><i className="h-1.5 flex-1 rounded-full bg-[#e2e8f0]" /><i className="h-1.5 flex-1 rounded-full bg-[#e2e8f0]" /></div>
+          <h2 className="mt-7 text-2xl font-bold text-[#10213d]">Diagnostic Assessment</h2>
+          <div className="mt-3 text-sm font-medium text-[#718096]"><span>Testing: {question.concept_name}</span><span className="ml-3 text-xs text-[#98a2b3]">Difficulty: {Math.round(question.difficulty * 100)}%</span></div>
         </div>
 
         <div className="prose max-w-none">
-          <p className="text-base sm:text-lg text-gray-900 whitespace-pre-wrap break-words">
+          <p className="whitespace-pre-wrap break-words text-lg font-medium leading-8 text-[#10213d]">
             {question.question_text}
           </p>
         </div>
@@ -120,7 +121,6 @@ export default function DiagnosticPanel({
                 className="block text-sm font-medium text-gray-700 mb-2"
               >
                 Your Answer
-                <span className="sr-only"> (required)</span>
               </label>
               {question.question_type === 'short_answer' ||
               question.question_type === 'reasoning' ||
@@ -130,7 +130,7 @@ export default function DiagnosticPanel({
                   name="diagnostic-answer"
                   value={answer}
                   onChange={(e) => setAnswer(e.target.value)}
-                  className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm sm:text-base transition-shadow"
+                  className="w-full resize-none rounded-xl border border-[#dce4ef] bg-[#fbfcfe] px-4 py-3 text-sm transition-shadow focus:border-[#1463ff] focus:bg-white sm:text-base"
                   rows={question.question_type === 'code' ? 10 : 5}
                   placeholder={
                     question.question_type === 'code'
@@ -149,7 +149,7 @@ export default function DiagnosticPanel({
                   type="text"
                   value={answer}
                   onChange={(e) => setAnswer(e.target.value)}
-                  className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base transition-shadow"
+                  className="w-full rounded-xl border border-[#dce4ef] bg-[#fbfcfe] px-4 py-3 text-sm transition-shadow focus:border-[#1463ff] focus:bg-white sm:text-base"
                   placeholder="Enter your answer here..."
                   disabled={isSubmitting}
                   required
@@ -159,11 +159,12 @@ export default function DiagnosticPanel({
               )}
             </div>
 
+            <div className="mb-5 rounded-xl bg-[#f4f7fb] p-4 text-sm leading-6 text-[#718096]"><span className="mr-2 font-bold text-[#1463ff]">ⓘ</span>Honest answers, even partial ones, help RootLearn pinpoint your real gap. There is no penalty for being unsure.</div>
             <button
               type="submit"
               disabled={isSubmitting || !answer.trim()}
-              className="w-full bg-blue-600 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all text-sm sm:text-base"
-              aria-label={isSubmitting ? 'Submitting answer, please wait' : 'Submit your answer'}
+              className="w-full rounded-xl bg-[#1463ff] px-6 py-3.5 font-semibold text-white transition hover:bg-[#0754e8] disabled:cursor-not-allowed disabled:bg-[#aebbd0]"
+              aria-label={isSubmitting ? 'Submitting answer, please wait' : 'Submit answer'}
             >
               {isSubmitting ? (
                 <span className="flex items-center justify-center gap-2">
@@ -201,7 +202,7 @@ export default function DiagnosticPanel({
       {/* Evaluation Feedback - Responsive */}
       {evaluation && (
         <div 
-          className="bg-white rounded-lg shadow-md p-4 sm:p-6 space-y-4"
+          className="space-y-4 rounded-xl border border-[#dce5ef] bg-[#f8fafc] p-4 sm:p-6"
           role="region"
           aria-label="Evaluation results"
           aria-live="polite"
