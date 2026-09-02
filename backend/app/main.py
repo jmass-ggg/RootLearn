@@ -2,9 +2,20 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import ValidationError as PydanticValidationError
+from sqlalchemy.exc import IntegrityError
 
 from app.config import get_settings
+from app.error_handlers import (
+    generic_exception_handler,
+    integrity_exception_handler,
+    pydantic_validation_exception_handler,
+    rootlearn_exception_handler,
+    validation_exception_handler,
+)
+from app.exceptions import RootLearnException
 from app.logging_config import configure_logging, get_logger
 from app.middleware import CorrelationIdMiddleware
 from app.routes import diagnosis, graph, health, mastery, root_gap, sessions, teachback, tutor
@@ -43,6 +54,13 @@ app.add_middleware(
 
 # Add correlation ID middleware
 app.add_middleware(CorrelationIdMiddleware)
+
+# Register exception handlers
+app.add_exception_handler(RootLearnException, rootlearn_exception_handler)
+app.add_exception_handler(RequestValidationError, validation_exception_handler)
+app.add_exception_handler(PydanticValidationError, pydantic_validation_exception_handler)
+app.add_exception_handler(IntegrityError, integrity_exception_handler)
+app.add_exception_handler(Exception, generic_exception_handler)
 
 # Include routers
 app.include_router(health.router, prefix=settings.api_v1_prefix, tags=["health"])

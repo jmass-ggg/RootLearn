@@ -8,7 +8,10 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.logging_config import get_logger
 from app.models import AIRun
+
+logger = get_logger(__name__)
 
 
 class AIRunLogger:
@@ -79,6 +82,23 @@ class AIRunLogger:
         self.db.add(ai_run)
         await self.db.commit()
         await self.db.refresh(ai_run)
+        
+        # Log to structured logs for monitoring
+        log_level = "info" if success else "error"
+        log_method = getattr(logger, log_level)
+        
+        log_method(
+            "ai_run_logged",
+            purpose=purpose,
+            provider=provider,
+            model=model,
+            success=success,
+            latency_ms=latency_ms,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            error_code=error_code,
+            session_id=str(session_id) if session_id else None,
+        )
         
         return ai_run
 
