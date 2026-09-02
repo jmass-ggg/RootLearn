@@ -70,7 +70,7 @@ class TutorService:
     ) -> None:
         """Start tutoring for a concept.
         
-        Updates session status to "tutoring" and prepares for tutoring session.
+        Updates session status to "tutoring" and creates initial system message.
         
         Args:
             session_id: ID of the learning session
@@ -104,6 +104,17 @@ class TutorService:
         
         # Update session status to tutoring
         session.status = "tutoring"
+        await self.db.flush()
+        
+        # Create initial system message to establish tutoring context
+        system_msg = TutorMessage(
+            session_id=session_id,
+            concept_id=concept_id,
+            role="system",
+            content=f"Starting Socratic tutoring for concept: {concept.name}",
+            hint_level=0,
+        )
+        self.db.add(system_msg)
         await self.db.flush()
         
         logger.info(

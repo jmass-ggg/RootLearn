@@ -1,6 +1,6 @@
 """Integration test for complete learning loop.
 
-Task: 16 - Checkpoint to verify core learning loop
+Task: 24.1 - Write integration test for complete learning loop
 Requirements: All core requirements
 
 This test verifies the complete flow:
@@ -13,11 +13,11 @@ This test verifies the complete flow:
 7. Verify mastery update and event creation
 8. Get next concept recommendation
 
-This is a critical checkpoint test that validates the entire system works end-to-end.
+This is a critical integration test that validates the entire system works end-to-end.
 """
 import uuid
 from decimal import Decimal
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from sqlalchemy import select
@@ -38,8 +38,8 @@ from app.services.concept_service import ConceptService
 from app.services.diagnostic_service import DiagnosticService
 from app.services.graph_service import GraphService
 from app.services.learning_path_service import LearningPathService
-from app.services.mastery_service import MasteryService
-from app.services.root_gap_service import RootGapService
+from app.services.mastery_service import MasteryService, Evidence
+from app.services.root_gap_service import RootGapService, RootGapResult
 from app.services.session_service import SessionService
 from app.services.state_machine_service import StateMachineService
 from app.services.teachback_service import TeachBackService
@@ -54,7 +54,16 @@ from app.ai.schemas import (
     SocraticResponseOutput,
     TeachBackEvaluationOutput,
 )
-from app.services.mastery_service import Evidence
+from app.ai.validated_ai_service import create_validated_ai_service
+
+
+def create_mock_provider(return_value):
+    """Helper to create properly configured mock AI provider."""
+    mock_provider = AsyncMock()
+    mock_provider.generate_structured.return_value = return_value
+    mock_provider.provider_name = "test"
+    mock_provider.model = "test-model"
+    return mock_provider
 
 
 @pytest.mark.asyncio
@@ -91,8 +100,7 @@ async def test_complete_learning_loop(db_session: AsyncSession):
     )
     
     with patch('app.ai.factory.get_ai_provider') as mock_ai:
-        mock_provider = AsyncMock()
-        mock_provider.generate_structured.return_value = mock_concept_output
+        mock_provider = create_mock_provider(mock_concept_output)
         mock_ai.return_value = mock_provider
         
         session = await session_service.create_session(
@@ -103,6 +111,30 @@ async def test_complete_learning_loop(db_session: AsyncSession):
     assert session is not None
     assert session.status == "analyzing"
     assert session.original_prompt == "I don't understand recursion in programming"
+    
+    # ============================================================
+    # STEP 1.5: Identify target concept
+    # ============================================================
+    with patch('app.ai.factory.get_ai_provider') as mock_ai:
+        mock_provider_concept = create_mock_provider(mock_concept_output)
+        mock_ai.return_value = mock_provider_concept
+        
+        validated_ai_service_concept = create_validated_ai_service(mock_provider_concept, db_session)
+        concept_service = ConceptService(db_session, validated_ai_service_concept)
+        
+        target_concept = await concept_service.analyze_target_concept(
+            session_id=session.id,
+            prompt=session.original_prompt
+        )
+    
+    assert target_concept is not None
+    assert target_concept.is_target is True
+    assert target_concept.slug == "recursion"
+    
+    # Note: In production, session.target_concept_id would be set by the commit in analyze_target_concept
+    # In tests with transaction control, we need to manually set it for the graph generation
+    session.target_concept_id = target_concept.id
+    await db_session.flush()
     
     # ============================================================
     # STEP 2: Generate and validate prerequisite graph
@@ -139,17 +171,13 @@ async def test_complete_learning_loop(db_session: AsyncSession):
         ]
     )
     
-    # Create AI service mock for GraphService
-    from app.ai.validated_ai_service import ValidatedAIService
-    
     with patch('app.ai.factory.get_ai_provider') as mock_ai:
-        mock_provider_inner = AsyncMock()
-        mock_provider_inner.generate_structured.return_value = mock_graph_output
-        mock_ai.return_value = mock_provider_inner
+        mock_provider_graph = create_mock_provider(mock_graph_output)
+        mock_ai.return_value = mock_provider_graph
         
         # Create ValidatedAIService with mocked provider
-        validated_ai_service = ValidatedAIService(db_session)
-        graph_service = GraphService(db_session, validated_ai_service)
+        validated_ai_service_graph = create_validated_ai_service(mock_provider_graph, db_session)
+        graph_service = GraphService(db_session, validated_ai_service_graph)
         
         await graph_service.generate_graph(session.id)
     
@@ -175,12 +203,14 @@ async def test_complete_learning_loop(db_session: AsyncSession):
     # ============================================================
     # STEP 3: Run diagnosis until root gap is identified
     # ============================================================
-    # Create AI service mock for DiagnosticService
+    # Initialize services with proper dependencies
+    mastery_service = MasteryService(db_session)
+    
     with patch('app.ai.factory.get_ai_provider') as mock_ai:
-        mock_provider_diag = AsyncMock()
+        mock_provider_diag = create_mock_provider(None)  # Not generating structured output here
         mock_ai.return_value = mock_provider_diag
         
-        validated_ai_service_diag = ValidatedAIService(db_session)
+        validated_ai_service_diag = create_validated_ai_service(mock_provider_diag, db_session)
         diagnostic_service = DiagnosticService(db_session, validated_ai_service_diag, mastery_service)
         state_machine = StateMachineService(db_session)
     
@@ -210,11 +240,10 @@ async def test_complete_learning_loop(db_session: AsyncSession):
     assert call_stack is not None
     
     with patch('app.ai.factory.get_ai_provider') as mock_ai:
-        mock_provider_question = AsyncMock()
-        mock_provider_question.generate_structured.return_value = mock_question_output
+        mock_provider_question = create_mock_provider(mock_question_output)
         mock_ai.return_value = mock_provider_question
         
-        validated_ai_service_question = ValidatedAIService(db_session)
+        validated_ai_service_question = create_validated_ai_service(mock_provider_question, db_session)
         diagnostic_service_for_question = DiagnosticService(db_session, validated_ai_service_question, mastery_service)
         
         question = await diagnostic_service_for_question.generate_question(call_stack.id)
@@ -232,11 +261,10 @@ async def test_complete_learning_loop(db_session: AsyncSession):
     )
     
     with patch('app.ai.factory.get_ai_provider') as mock_ai:
-        mock_provider_eval = AsyncMock()
-        mock_provider_eval.generate_structured.return_value = mock_eval_output
+        mock_provider_eval = create_mock_provider(mock_eval_output)
         mock_ai.return_value = mock_provider_eval
         
-        validated_ai_service_eval = ValidatedAIService(db_session)
+        validated_ai_service_eval = create_validated_ai_service(mock_provider_eval, db_session)
         diagnostic_service_for_eval = DiagnosticService(db_session, validated_ai_service_eval, mastery_service)
         
         result = await diagnostic_service_for_eval.evaluate_answer(
@@ -245,7 +273,8 @@ async def test_complete_learning_loop(db_session: AsyncSession):
         )
     
     assert result is not None
-    assert "correctness_score" in result
+    assert result.correctness_score is not None
+    assert result.reasoning_score is not None
     
     # Verify diagnostic attempt was recorded
     db_result = await db_session.execute(
@@ -260,34 +289,85 @@ async def test_complete_learning_loop(db_session: AsyncSession):
     # ============================================================
     root_gap_service = RootGapService(db_session)
     
-    # Manually update mastery for call stack to make it the root gap
+    # The diagnostic attempt was already recorded by evaluate_answer,
+    # so we just need to update mastery to trigger recalculation
     await mastery_service.update_mastery(
         concept_id=call_stack.id,
         evidence=Evidence(
             source_type="diagnostic",
-            reason={"diagnostic_score": 0.35}
+            reason={"evaluation_completed": True}
         )
     )
     
-    # Set other concepts to higher mastery
+    # Set other concepts to higher mastery by creating diagnostic attempts
     functions = next((c for c in concepts if c.slug == "functions"), None)
     base_case = next((c for c in concepts if c.slug == "base-case"), None)
     
     if functions:
+        # Create a diagnostic attempt with good scores
+        functions_question = DiagnosticQuestion(
+            session_id=session.id,
+            concept_id=functions.id,
+            question_text="What is a function?",
+            question_type="short_answer",
+            rubric_json={"key_points": ["reusable code", "named block"]},
+            difficulty=Decimal("0.5")
+        )
+        db_session.add(functions_question)
+        await db_session.flush()
+        
+        functions_attempt = DiagnosticAttempt(
+            question_id=functions_question.id,
+            session_id=session.id,
+            concept_id=functions.id,
+            student_answer="A function is a reusable block of code",
+            correctness_score=Decimal("0.75"),
+            reasoning_score=Decimal("0.75"),
+            misconceptions_json=None,
+            missing_points_json=None
+        )
+        db_session.add(functions_attempt)
+        await db_session.flush()
+        
         await mastery_service.update_mastery(
             concept_id=functions.id,
             evidence=Evidence(
                 source_type="diagnostic",
-                reason={"diagnostic_score": 0.75}
+                reason={"evaluation_completed": True}
             )
         )
     
     if base_case:
+        # Create a diagnostic attempt with moderate scores
+        base_case_question = DiagnosticQuestion(
+            session_id=session.id,
+            concept_id=base_case.id,
+            question_text="What is a base case?",
+            question_type="short_answer",
+            rubric_json={"key_points": ["stopping condition"]},
+            difficulty=Decimal("0.5")
+        )
+        db_session.add(base_case_question)
+        await db_session.flush()
+        
+        base_case_attempt = DiagnosticAttempt(
+            question_id=base_case_question.id,
+            session_id=session.id,
+            concept_id=base_case.id,
+            student_answer="It stops the recursion",
+            correctness_score=Decimal("0.50"),
+            reasoning_score=Decimal("0.50"),
+            misconceptions_json=None,
+            missing_points_json=None
+        )
+        db_session.add(base_case_attempt)
+        await db_session.flush()
+        
         await mastery_service.update_mastery(
             concept_id=base_case.id,
             evidence=Evidence(
                 source_type="diagnostic",
-                reason={"diagnostic_score": 0.50}
+                reason={"evaluation_completed": True}
             )
         )
     
@@ -295,16 +375,18 @@ async def test_complete_learning_loop(db_session: AsyncSession):
     gap_result = await root_gap_service.detect_root_gap(session.id)
     
     assert gap_result is not None
-    assert "root_gap_concept" in gap_result
+    assert isinstance(gap_result, RootGapResult)
+    
     # Either call-stack or base-case could be root gap depending on formula
-    root_gap_slug = gap_result["root_gap_concept"]["slug"]
+    root_gap_slug = gap_result.concept.slug
     assert root_gap_slug in ["call-stack", "base-case"]
     
     # Verify explanation is complete
-    assert "mastery" in gap_result["root_gap_concept"]
-    assert "confidence" in gap_result["root_gap_concept"]
-    assert "gap_score" in gap_result["root_gap_concept"]
-    assert "explanation" in gap_result
+    assert gap_result.concept.mastery_score >= 0
+    assert gap_result.concept.confidence_score >= 0
+    assert gap_result.gap_score >= 0
+    assert gap_result.explanation is not None
+    assert len(gap_result.explanation.reasons) > 0
     
     # ============================================================
     # STEP 5: Complete Socratic tutoring session
@@ -312,20 +394,36 @@ async def test_complete_learning_loop(db_session: AsyncSession):
     tutor_service = TutorService(db_session)
     
     # Transition to tutoring
-    root_gap_concept_id = gap_result["root_gap_concept"]["id"]
+    root_gap_concept_id = gap_result.concept.id
     await state_machine.transition_to_tutoring(session.id, root_gap_concept_id)
     await db_session.refresh(session)
     assert session.status == "tutoring"
     
-    # Mock Socratic response
-    mock_socratic_response = SocraticResponseOutput(
-        response_text="Let's think about this together. Can you tell me what happens when you call a function?",
-        hint_level=1
-    )
+    # Start tutoring for the root gap concept
+    await tutor_service.start_tutoring(session.id, root_gap_concept_id)
     
-    with patch('app.ai.factory.get_ai_provider') as mock_ai:
+    # Mock Socratic response - create a proper async generator class
+    class MockAsyncGenerator:
+        def __init__(self):
+            self.chunks = ["Let's think about this together. ", "Can you tell me what happens when you call a function?"]
+            self.index = 0
+        
+        def __aiter__(self):
+            return self
+        
+        async def __anext__(self):
+            if self.index >= len(self.chunks):
+                raise StopAsyncIteration
+            chunk = self.chunks[self.index]
+            self.index += 1
+            return chunk
+    
+    with patch('app.services.tutor_service.get_ai_provider') as mock_ai:
         mock_provider_tutor = AsyncMock()
-        mock_provider_tutor.generate_structured.return_value = mock_socratic_response
+        mock_provider_tutor.provider_name = "test"
+        mock_provider_tutor.model = "test-model"
+        # Make stream_text return our mock async generator
+        mock_provider_tutor.stream_text.return_value = MockAsyncGenerator()
         mock_ai.return_value = mock_provider_tutor
         
         response = await tutor_service.generate_response(
@@ -341,28 +439,15 @@ async def test_complete_learning_loop(db_session: AsyncSession):
         select(TutorMessage).where(TutorMessage.session_id == session.id)
     )
     messages = db_result.scalars().all()
-    assert len(messages) >= 2  # user message + assistant response
+    # Should have: system message, user message, assistant response
+    assert len(messages) >= 3
     
-    # Update practice evidence
-    await mastery_service.update_mastery(
-        concept_id=root_gap_concept_id,
-        evidence=Evidence(
-            source_type="tutoring",
-            reason={"practice_score": 0.60}
-        )
-    )
+    # Note: Practice evidence is not currently stored in the database in MVP
+    # The mastery calculation will use only diagnostic and teachback evidence
     
     # ============================================================
     # STEP 6: Submit and evaluate teach-back
     # ============================================================
-    # Create AI service mock for TeachBackService  
-    with patch('app.ai.factory.get_ai_provider') as mock_ai:
-        mock_provider_teachback = AsyncMock()
-        mock_ai.return_value = mock_provider_teachback
-        
-        validated_ai_service_teachback = ValidatedAIService(db_session)
-        teachback_service = TeachBackService(db_session, validated_ai_service_teachback, mastery_service)
-    
     # Transition to teachback
     await state_machine.transition_to_teachback(session.id)
     await db_session.refresh(session)
@@ -383,11 +468,10 @@ async def test_complete_learning_loop(db_session: AsyncSession):
     )
     
     with patch('app.ai.factory.get_ai_provider') as mock_ai:
-        mock_provider_eval_tb = AsyncMock()
-        mock_provider_eval_tb.generate_structured.return_value = mock_teachback_eval
+        mock_provider_eval_tb = create_mock_provider(mock_teachback_eval)
         mock_ai.return_value = mock_provider_eval_tb
         
-        validated_ai_service_eval_tb = ValidatedAIService(db_session)
+        validated_ai_service_eval_tb = create_validated_ai_service(mock_provider_eval_tb, db_session)
         teachback_service_eval = TeachBackService(db_session, validated_ai_service_eval_tb, mastery_service)
         
         teachback_result = await teachback_service_eval.evaluate_teachback(
@@ -529,7 +613,33 @@ async def test_deterministic_calculations_consistency(db_session: AsyncSession):
     
     mastery_service = MasteryService(db_session)
     
-    # Update mastery with known evidence
+    # Create diagnostic question and attempt with known scores
+    diagnostic_question = DiagnosticQuestion(
+        session_id=session.id,
+        concept_id=concept.id,
+        question_text="Test question",
+        question_type="short_answer",
+        rubric_json={"key_points": ["test"]},
+        difficulty=Decimal("0.5")
+    )
+    db_session.add(diagnostic_question)
+    await db_session.flush()
+    
+    # First diagnostic attempt with scores
+    diagnostic_attempt1 = DiagnosticAttempt(
+        question_id=diagnostic_question.id,
+        session_id=session.id,
+        concept_id=concept.id,
+        student_answer="Test answer",
+        correctness_score=Decimal("0.60"),
+        reasoning_score=Decimal("0.60"),
+        misconceptions_json=None,
+        missing_points_json=None
+    )
+    db_session.add(diagnostic_attempt1)
+    await db_session.flush()
+    
+    # Update mastery with diagnostic evidence
     await mastery_service.update_mastery(
         concept_id=concept.id,
         evidence=Evidence(
@@ -540,37 +650,58 @@ async def test_deterministic_calculations_consistency(db_session: AsyncSession):
     await db_session.refresh(concept)
     first_mastery = concept.mastery_score
     
-    # Calculate again with same evidence - should get same result
+    # Calculate again - should get same result since evidence didn't change
+    second_mastery_calc = await mastery_service.calculate_mastery(concept.id)
+    
+    # Verify determinism (allowing for floating point precision)
+    assert abs(float(first_mastery) - second_mastery_calc) < 0.001
+    
+    # Create another diagnostic question for practice
+    practice_question = DiagnosticQuestion(
+        session_id=session.id,
+        concept_id=concept.id,
+        question_text="Practice question",
+        question_type="short_answer",
+        rubric_json={"key_points": ["practice"]},
+        difficulty=Decimal("0.5")
+    )
+    db_session.add(practice_question)
+    await db_session.flush()
+    
+    # Add second diagnostic attempt (simulating more evidence)
+    diagnostic_attempt2 = DiagnosticAttempt(
+        question_id=practice_question.id,
+        session_id=session.id,
+        concept_id=concept.id,
+        student_answer="Better answer",
+        correctness_score=Decimal("0.70"),
+        reasoning_score=Decimal("0.70"),
+        misconceptions_json=None,
+        missing_points_json=None
+    )
+    db_session.add(diagnostic_attempt2)
+    await db_session.flush()
+    
+    # Update mastery with the new evidence
     await mastery_service.update_mastery(
         concept_id=concept.id,
         evidence=Evidence(
             source_type="diagnostic",
-            reason={"diagnostic_score": 0.60}
-        )
-    )
-    await db_session.refresh(concept)
-    second_mastery = concept.mastery_score
-    
-    # Verify determinism (allowing for floating point precision)
-    assert abs(float(first_mastery) - float(second_mastery)) < 0.001
-    
-    # Add practice evidence
-    await mastery_service.update_mastery(
-        concept_id=concept.id,
-        evidence=Evidence(
-            source_type="tutoring",
-            reason={"practice_score": 0.70}
+            reason={"additional_diagnostic": True}
         )
     )
     await db_session.refresh(concept)
     
-    # Expected: 0.45*0.60 + 0.35*0.70 + 0.20*0.0 = 0.27 + 0.245 = 0.515
-    # With renormalization (no teachback): 0.45/(0.45+0.35)*0.60 + 0.35/(0.45+0.35)*0.70
-    # = 0.5625*0.60 + 0.4375*0.70 = 0.3375 + 0.30625 = 0.64375
-    expected_with_practice = 0.5625 * 0.60 + 0.4375 * 0.70
-    assert abs(float(concept.mastery_score) - expected_with_practice) < 0.01
+    # Expected: average of (0.60 + 0.70) / 2 = 0.65
+    # Since we only have diagnostic evidence, weight renormalization gives us 100% to diagnostic
+    expected_with_more_evidence = 0.65
+    assert abs(float(concept.mastery_score) - expected_with_more_evidence) < 0.01
+    
+    # Verify confidence increased with more evidence (2 attempts = 0.60)
+    assert float(concept.confidence_score) == 0.60
     
     print(f"✓ Deterministic calculations verified")
     print(f"  First calculation: {first_mastery}")
-    print(f"  Second calculation: {second_mastery}")
-    print(f"  With practice: {concept.mastery_score}")
+    print(f"  Second calculation: {second_mastery_calc}")
+    print(f"  With more evidence: {concept.mastery_score}")
+    print(f"  Confidence: {concept.confidence_score}")
