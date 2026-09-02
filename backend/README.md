@@ -103,6 +103,31 @@ Response:
 }
 ```
 
+## Demo Fixtures
+
+Pre-built demo scenario for presentations and testing:
+
+```bash
+# Quick start (cross-platform)
+python demo_quickstart.py
+
+# Or manually:
+python seed_demo.py
+```
+
+This creates a complete learning session for "I don't understand recursion" with:
+- Pre-built prerequisite graph (7 concepts, 9 edges)
+- Diagnostic questions and attempts
+- Socratic tutoring dialogue
+- Teach-back evaluation
+- Mastery tracking events
+
+**Demo credentials**:
+- Email: `demo@rootlearn.example`
+- Session includes realistic progression from initial confusion to understanding
+
+See [`DEMO_FIXTURES.md`](./DEMO_FIXTURES.md) for complete documentation.
+
 ## Project Structure
 
 ```
@@ -120,6 +145,9 @@ backend/
 │   └── routes/          # API route handlers
 │       └── health.py    # Health check endpoints
 ├── tests/               # Test files
+├── seed_demo.py         # Demo data seeder
+├── demo_quickstart.py   # Cross-platform demo setup
+├── demo_quickstart.sh   # Shell-based demo setup
 ├── .env                 # Environment variables (not in git)
 ├── .env.example         # Example environment file
 ├── alembic.ini          # Alembic configuration
