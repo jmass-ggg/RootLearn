@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, forwardRef, useImperativeHandle } from 'react';
+import { useCallback, useEffect, useMemo, forwardRef, useImperativeHandle } from 'react';
 import {
   ReactFlow,
   Node,
@@ -15,6 +15,7 @@ import {
   OnNodesChange,
   OnEdgesChange,
   useReactFlow,
+  useNodesInitialized,
   ReactFlowProvider,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
@@ -197,6 +198,7 @@ function edgesToFlowEdges(edges: PrerequisiteGraph['edges']): Edge[] {
 const KnowledgeGraphInternal = forwardRef<GraphControlsRef, KnowledgeGraphInternalProps>(
   ({ graph, onNodeClick }, ref) => {
     const reactFlowInstance = useReactFlow();
+    const nodesInitialized = useNodesInitialized();
 
     const initialNodes = useMemo(
       () => conceptsToNodes(graph.concepts, graph.edges, graph.root_gap_id),
@@ -210,6 +212,46 @@ const KnowledgeGraphInternal = forwardRef<GraphControlsRef, KnowledgeGraphIntern
 
     const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
     const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+
+    // useNodesState/useEdgesState only consume their initial value on mount.
+    // Keep React Flow's internal state in sync when a query refetch returns new
+    // mastery, confidence, status, or root-gap data. Preserve positions so a
+    // learner's panning/dragging is not reset by background polling.
+    useEffect(() => {
+      setNodes((currentNodes) => {
+        const currentById = new Map(currentNodes.map((node) => [node.id, node]));
+
+        return initialNodes.map((node) => {
+          const current = currentById.get(node.id);
+          return current
+            ? {
+                ...node,
+                position: current.position,
+                selected: current.selected,
+                dragging: current.dragging,
+              }
+            : node;
+        });
+      });
+    }, [initialNodes, setNodes]);
+
+    useEffect(() => {
+      setEdges(initialEdges);
+    }, [initialEdges, setEdges]);
+
+    // `fitView` on the ReactFlow element can run before custom nodes have been
+    // measured when this workspace is opened from sidebar navigation. Refit
+    // once measurements are ready so the focused Knowledge Map never opens on
+    // an empty part of the canvas.
+    useEffect(() => {
+      if (!nodesInitialized || nodes.length === 0) return;
+
+      const frame = window.requestAnimationFrame(() => {
+        reactFlowInstance.fitView({ padding: 0.2, duration: 0 });
+      });
+
+      return () => window.cancelAnimationFrame(frame);
+    }, [nodesInitialized, nodes.length, reactFlowInstance]);
 
     const nodeTypes = useMemo<NodeTypes>(() => ({
       conceptNode: ConceptNode,

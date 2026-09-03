@@ -125,9 +125,18 @@ export const SessionShell: React.FC<SessionShellProps> = ({
   };
 
   const handleNavigate = (section: string) => {
-    // Navigation is handled by the Sidebar component via href attributes
-    // This callback can be used for additional logic if needed
-    console.log('Navigating to section:', section);
+    const query = new URLSearchParams({ user_id: userId });
+
+    if (section === 'knowledge-map' || section === 'progress') {
+      query.set('section', section);
+    }
+
+    if (section === 'teach-back') {
+      router.push(`/session/${sessionId}/teachback?${query.toString()}`);
+      return;
+    }
+
+    router.push(`/session/${sessionId}?${query.toString()}`);
   };
 
   // Check if we're in an active session (has sessionId)

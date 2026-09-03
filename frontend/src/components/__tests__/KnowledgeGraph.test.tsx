@@ -84,6 +84,25 @@ describe('KnowledgeGraph Component', () => {
       expect(screen.getByText('15%')).toBeInTheDocument();
     });
 
+    it('should update a node when refreshed graph mastery data changes', async () => {
+      const initialGraph = createTestGraph([
+        createConcept('1', 'Variables', 0, 'unknown'),
+      ]);
+      const { rerender } = render(<KnowledgeGraph graph={initialGraph} />);
+
+      expect(screen.getByText('0%')).toBeInTheDocument();
+      expect(screen.getByText('unknown')).toBeInTheDocument();
+
+      const refreshedGraph = createTestGraph([
+        createConcept('1', 'Variables', 0.72, 'understood'),
+      ]);
+      rerender(<KnowledgeGraph graph={refreshedGraph} />);
+
+      expect(await screen.findByText('72%')).toBeInTheDocument();
+      expect(screen.getByText('understood')).toBeInTheDocument();
+      expect(screen.queryByText('0%')).not.toBeInTheDocument();
+    });
+
     it('should display both concept name and mastery percentage for any concept', () => {
       // Property: For any concept node rendered, both name and mastery % should be present
       const testCases = [

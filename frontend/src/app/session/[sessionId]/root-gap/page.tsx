@@ -82,7 +82,7 @@ export default function RootGapPage() {
       <AppShell 
         status={session?.status} 
         topic={session?.normalized_topic || session?.original_prompt}
-        activeSection="root-gap"
+        activeSection="knowledge-map"
       >
         <StateDisplay
           variant="loading"
@@ -99,7 +99,7 @@ export default function RootGapPage() {
       <AppShell 
         status={session?.status} 
         topic={session?.normalized_topic || session?.original_prompt}
-        activeSection="root-gap"
+        activeSection="knowledge-map"
       >
         <StateDisplay
           variant={isError ? "error" : "empty"}
@@ -122,9 +122,9 @@ export default function RootGapPage() {
     <AppShell 
       status={session?.status} 
       topic={session?.normalized_topic || session?.original_prompt}
-      activeSection="root-gap"
+      activeSection="knowledge-map"
     >
-      <section className="min-h-[calc(100vh-76px)] px-4 py-10 sm:px-8">
+      <section className="min-h-[calc(100vh-88px)] px-4 py-10 sm:px-8">
         <div className="mx-auto max-w-5xl text-center">
           <span className="rounded-full bg-[#ddf4ea] px-4 py-2 text-sm font-semibold text-[#18986b]">
             ✓ Diagnosis complete

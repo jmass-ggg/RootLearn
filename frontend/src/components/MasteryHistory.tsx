@@ -64,9 +64,13 @@ function formatTimestamp(isoString: string): string {
 /**
  * Extract reason text from reason JSON
  */
-function formatReason(reasonJson: Record<string, any>): string {
+function formatReason(reasonJson: Record<string, any>, sourceType: MasterySourceType): string {
   if (typeof reasonJson === 'string') {
     return reasonJson;
+  }
+
+  if (!reasonJson || typeof reasonJson !== 'object') {
+    return `Mastery updated from ${sourceType} evidence.`;
   }
   
   // Try common fields
@@ -79,13 +83,31 @@ function formatReason(reasonJson: Record<string, any>): string {
   if (reasonJson.reason) {
     return reasonJson.reason;
   }
-  
-  // Fallback to JSON stringify (pretty format)
-  try {
-    return JSON.stringify(reasonJson, null, 2);
-  } catch {
-    return 'Reason details unavailable';
+
+  const demonstratedPoints = Array.isArray(reasonJson.demonstrated_points)
+    ? reasonJson.demonstrated_points.filter((point: unknown): point is string => typeof point === 'string')
+    : [];
+  const missingPoints = Array.isArray(reasonJson.missing_points)
+    ? reasonJson.missing_points.filter((point: unknown): point is string => typeof point === 'string')
+    : [];
+  const misconceptions = Array.isArray(reasonJson.misconceptions)
+    ? reasonJson.misconceptions.filter((point: unknown): point is string => typeof point === 'string')
+    : [];
+  const summary: string[] = [];
+
+  if (demonstratedPoints.length > 0) {
+    summary.push(`Demonstrated: ${demonstratedPoints.join(' ')}`);
   }
+  if (missingPoints.length > 0) {
+    summary.push(`Still to strengthen: ${missingPoints.join(' ')}`);
+  }
+  if (misconceptions.length > 0) {
+    summary.push(`Misconceptions identified: ${misconceptions.join(' ')}`);
+  }
+
+  return summary.length > 0
+    ? summary.join('\n\n')
+    : `Mastery updated from ${sourceType} evidence.`;
 }
 
 export function MasteryHistory({
@@ -187,9 +209,9 @@ export function MasteryHistory({
                 
                 {/* Reason */}
                 <div className="pt-3 border-t border-gray-100">
-                  <div className="text-xs text-gray-500 uppercase mb-1">Reason</div>
+                  <div className="text-xs text-gray-500 uppercase mb-1">Why it changed</div>
                   <div className="text-sm text-gray-700 whitespace-pre-wrap">
-                    {formatReason(event.reason)}
+                    {formatReason(event.reason, event.source_type)}
                   </div>
                 </div>
               </div>

@@ -10,6 +10,7 @@ import DiagnosticAssessmentCard from '@/components/DiagnosticAssessmentCard';
 import RootGapCard from '@/components/RootGapCard';
 import TutorPanel from '@/components/TutorPanel';
 import TeachBackPanel from '@/components/TeachBackPanel';
+import { MasteryHistory } from '@/components/MasteryHistory';
 import AppShell, { WorkspaceSection } from '@/components/AppShell';
 import type { PrerequisiteGraph, RootGapResult, MasteryEvent } from '@/types';
 import { useEffect, useState, useRef } from 'react';
@@ -28,6 +29,8 @@ export default function SessionPage() {
   // State for tracking transitions
   const [previousStatus, setPreviousStatus] = useState<string | null>(null);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [showKnowledgeMap, setShowKnowledgeMap] = useState(searchParams.get('section') === 'knowledge-map');
+  const [showProgress, setShowProgress] = useState(searchParams.get('section') === 'progress');
 
   // Fetch session data with polling to catch status changes
   const { 
@@ -97,7 +100,6 @@ export default function SessionPage() {
   const { 
     data: rootGap,
     isLoading: rootGapLoading,
-    refetch: refetchRootGap,
   } = useQuery({
     queryKey: ['root-gap', sessionId, userId],
     queryFn: () => api.rootGap.get(sessionId, userId!),
@@ -116,14 +118,15 @@ export default function SessionPage() {
     refetchInterval: 5000,
   });
 
-  // Fetch mastery events for completed sessions
+  // Fetch mastery events whenever the learner opens Progress, and keep the
+  // completed-session summary populated as before.
   const { 
     data: masteryEvents,
     isLoading: masteryLoading,
   } = useQuery({
     queryKey: ['mastery-events', sessionId, userId],
     queryFn: () => api.mastery.getSessionEvents(sessionId, userId!),
-    enabled: !!userId && session?.status === 'completed',
+    enabled: !!userId && (session?.status === 'completed' || showProgress),
   });
 
   // State for evaluation
@@ -131,6 +134,7 @@ export default function SessionPage() {
   const [teachBackEvaluation, setTeachBackEvaluation] = useState<any>(null);
   const [isRequestingTeachback, setIsRequestingTeachback] = useState(false);
   const [showTutor, setShowTutor] = useState(false);
+  const [navigationNotice, setNavigationNotice] = useState<string | null>(null);
 
   // Mutation for submitting diagnostic answers
   const submitAnswerMutation = useMutation({
@@ -351,13 +355,70 @@ export default function SessionPage() {
   const confidenceScore = tutorData ?
     graph?.concepts.find(c => c.id === tutorData.concept_id)?.confidence_score || 0 : 0;
 
-  const activeSection: WorkspaceSection = session.status === 'tutoring' && showTutor ? 'ai-tutor' :
-    session.status === 'tutoring' ? 'root-gap' : session.status === 'diagnosing' ? 'diagnosis' :
+  const guidedSection: WorkspaceSection = session.status === 'tutoring' && showTutor ? 'ai-tutor' :
+    session.status === 'tutoring' ? 'knowledge-map' : session.status === 'diagnosing' ? 'diagnosis' :
     session.status === 'teachback' ? 'teach-back' : session.status === 'completed' ? 'progress' : 'overview';
+  const activeSection: WorkspaceSection = showProgress ? 'progress' : showKnowledgeMap ? 'knowledge-map' : guidedSection;
+
+  const navigateToSection = (section: WorkspaceSection) => {
+    setNavigationNotice(null);
+
+    if (section === 'overview') {
+      router.push('/');
+      return;
+    }
+
+    if (section === 'knowledge-map') {
+      setShowProgress(false);
+      setShowKnowledgeMap(true);
+      return;
+    }
+
+    setShowKnowledgeMap(false);
+    setShowProgress(false);
+
+    if (section === 'diagnosis') {
+      if (session.status !== 'diagnosing') {
+        setNavigationNotice('Diagnosis has already finished for this session.');
+      }
+      return;
+    }
+
+    if (section === 'ai-tutor') {
+      if (session.status === 'tutoring') {
+        setShowTutor(true);
+      } else {
+        setNavigationNotice('AI Tutor unlocks after RootLearn identifies your root gap.');
+      }
+      return;
+    }
+
+    if (section === 'teach-back') {
+      if (session.status !== 'teachback') {
+        setNavigationNotice('Teach-Back unlocks after the tutoring stage.');
+      }
+      return;
+    }
+
+    if (section === 'progress') {
+      setShowProgress(true);
+      return;
+    }
+  };
+
+  const displayedGraph = graph
+    ? {
+        ...graph,
+        root_gap_id: rootGap?.root_gap.concept_id || graph.root_gap_id,
+      }
+    : graph;
+  const diagnosticMasteryScore = currentQuestion
+    ? graph?.concepts.find((concept) => concept.id === currentQuestion.concept_id)?.mastery_score || 0
+    : 0;
 
   const graphPanel = (
     <GraphPanel
-      graph={graph}
+      graph={displayedGraph}
       isLoading={graphLoading}
       error={graphError}
       onRetry={() => refetchGraph()}
@@ -366,7 +427,13 @@ export default function SessionPage() {
   );
 
   return (
-    <AppShell status={session.status} topic={session.normalized_topic || session.original_prompt} activeSection={activeSection} onNewSession={() => router.push('/new-session')}>
+    <AppShell
+      status={session.status}
+      topic={session.normalized_topic || session.original_prompt}
+      activeSection={activeSection}
+      onSectionChange={navigateToSection}
+      onNewSession={() => router.push('/new-session')}
+    >
       {isTransitioning && (
         <div className="fixed right-6 top-24 z-50 flex items-center gap-3 rounded-xl border border-[#bcd0ff] bg-white px-4 py-3 text-sm font-semibold text-[#1463ff] shadow-lg">
           <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#9dbaff] border-t-[#1463ff]" />
@@ -374,23 +441,56 @@ export default function SessionPage() {
         </div>
       )}
 
-      {/* Wrap each status view in FadeTransition for smooth state changes (Requirements: 15.3) */}
-      <FadeTransition transitionKey={session.status} duration={250}>
-        {session.status === 'analyzing' && <AnalyzingView topic={session.normalized_topic || session.original_prompt} onCancel={() => router.push('/')} />}
+      {navigationNotice && (
+        <div className="fixed right-6 top-24 z-50 max-w-sm rounded-xl border border-[#bcd0ff] bg-white px-4 py-3 text-sm font-medium text-[#10213d] shadow-lg" role="status">
+          {navigationNotice}
+        </div>
+      )}
 
-        {session.status === 'diagnosing' && (
-          <section className="flex flex-col lg:flex-row gap-6 p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto">
+      {/* Keep the original guided UI; Knowledge Map is the same existing graph in a focused view. */}
+      <FadeTransition transitionKey={`${session.status}-${activeSection}`} duration={250}>
+        {(showKnowledgeMap || (!showProgress && session.status === 'tutoring' && !showTutor)) && (
+          <section className="mx-auto min-h-[calc(100vh-88px)] max-w-[1400px] p-4 sm:p-6 lg:p-8">
+            {graphPanel}
+            {session.status === 'tutoring' && (
+              <div className="mt-6">
+                <RootGapCard
+                  rootGap={rootGap || null}
+                  isLoading={rootGapLoading}
+                  onFixGap={() => {
+                    setShowKnowledgeMap(false);
+                    setShowTutor(true);
+                  }}
+                />
+              </div>
+            )}
+          </section>
+        )}
+
+        {showProgress && (
+          <ProgressView
+            graph={displayedGraph}
+            masteryEvents={masteryEvents || []}
+            isLoading={masteryLoading || graphLoading}
+          />
+        )}
+
+        {!showKnowledgeMap && !showProgress && session.status === 'analyzing' && <AnalyzingView topic={session.normalized_topic || session.original_prompt} onCancel={() => router.push('/')} />}
+
+        {!showKnowledgeMap && !showProgress && session.status === 'diagnosing' && (
+          <section className="mx-auto grid max-w-[1680px] gap-5 p-4 sm:p-6 lg:p-8 xl:grid-cols-[minmax(0,0.95fr)_minmax(440px,1.05fr)]">
             {/* Left column (or top on mobile): Knowledge Map */}
-            <div className="w-full lg:w-1/2 xl:w-3/5 min-w-0">
+            <div className="min-w-0">
               {graphPanel}
             </div>
             
             {/* Right column (or bottom on mobile): Diagnostic Assessment */}
-            <div className="w-full lg:w-1/2 xl:w-2/5 min-w-0">
+            <div className="min-w-0">
               <DiagnosticAssessmentCard 
                 question={currentQuestion || null} 
                 evaluation={lastEvaluation} 
                 isLoading={questionLoading} 
+                masteryScore={diagnosticMasteryScore}
                 onSubmitAnswer={async (answer) => { 
                   await submitAnswerMutation.mutateAsync(answer); 
                 }} 
@@ -399,12 +499,8 @@ export default function SessionPage() {
           </section>
         )}
 
-        {session.status === 'tutoring' && !showTutor && (
-          <RootGapView rootGap={rootGap || null} graph={graph} isLoading={rootGapLoading} onContinue={() => setShowTutor(true)} />
-        )}
-
-        {session.status === 'tutoring' && showTutor && (
-          <section className="mx-auto grid min-h-[calc(100vh-76px)] w-full max-w-[1600px] gap-4 sm:gap-6 p-4 sm:p-6 lg:p-7 xl:grid-cols-[340px_1fr]">
+        {!showKnowledgeMap && !showProgress && session.status === 'tutoring' && showTutor && (
+          <section className="mx-auto grid min-h-[calc(100vh-88px)] w-full max-w-[1600px] gap-4 sm:gap-6 p-4 sm:p-6 lg:p-7 xl:grid-cols-[340px_1fr]">
             <LearningPath graph={graph} rootGap={rootGap || null} />
             <div className="soft-card min-h-[600px] lg:min-h-[760px] overflow-hidden w-full min-w-0">
               <TutorPanel
@@ -426,8 +522,8 @@ export default function SessionPage() {
           </section>
         )}
 
-        {session.status === 'teachback' && (
-          <section className="workspace-pattern min-h-[calc(100vh-76px)] p-4 sm:p-6 lg:p-8">
+        {!showKnowledgeMap && !showProgress && session.status === 'teachback' && (
+          <section className="workspace-pattern min-h-[calc(100vh-88px)] p-4 sm:p-6 lg:p-8">
             <div className="soft-card mx-auto max-w-4xl overflow-hidden p-4 sm:p-6 lg:p-10 w-full">
               <div className="mb-6 sm:mb-8 border-b border-[#e3e9f1] pb-4 sm:pb-6">
                 <span className="rounded-full bg-[#eaf1ff] px-3 py-1.5 text-sm font-semibold text-[#1463ff]">Teach-Back</span>
@@ -448,7 +544,7 @@ export default function SessionPage() {
           </section>
         )}
 
-        {session.status === 'completed' && (
+        {!showKnowledgeMap && !showProgress && session.status === 'completed' && (
           <CompletedSessionView 
             masteryEvents={masteryEvents || []}
             graph={graph}
@@ -457,7 +553,7 @@ export default function SessionPage() {
           />
         )}
 
-        {session.status === 'abandoned' && (
+        {!showKnowledgeMap && !showProgress && session.status === 'abandoned' && (
           <AbandonedSessionView
             session={session}
             masteryEvents={masteryEvents || []}
@@ -468,6 +564,103 @@ export default function SessionPage() {
         )}
       </FadeTransition>
     </AppShell>
+  );
+}
+
+function ProgressView({
+  graph,
+  masteryEvents,
+  isLoading,
+}: {
+  graph?: PrerequisiteGraph;
+  masteryEvents: MasteryEvent[];
+  isLoading: boolean;
+}) {
+  const concepts = graph?.concepts || [];
+  const assessedConcepts = concepts.filter((concept) => concept.status !== 'unknown' && concept.status !== 'locked');
+  const masteredConcepts = concepts.filter((concept) => concept.status === 'mastered');
+  const averageMastery = concepts.length > 0
+    ? concepts.reduce((total, concept) => total + concept.mastery_score, 0) / concepts.length
+    : 0;
+  const totalGain = masteryEvents.reduce((total, event) => total + (event.new_score - event.old_score), 0);
+  const conceptNames = concepts.reduce((names, concept) => {
+    names[concept.id] = concept.name;
+    return names;
+  }, {} as Record<string, string>);
+  const rankedConcepts = [...concepts].sort((a, b) => b.mastery_score - a.mastery_score);
+
+  return (
+    <section className="workspace-pattern min-h-[calc(100vh-88px)] p-4 sm:p-6 lg:p-8">
+      <div className="mx-auto max-w-5xl">
+        <div className="mb-6">
+          <span className="rounded-full bg-[#e8f1ff] px-4 py-2 text-sm font-semibold text-[#2878e9]">Live progress</span>
+          <h1 className="mt-4 text-3xl font-bold tracking-tight text-[#111827]">Your learning progress</h1>
+          <p className="mt-2 text-[#747983]">This view updates as your answers change mastery and confidence across the knowledge map.</p>
+        </div>
+
+        {isLoading ? (
+          <div className="soft-card flex min-h-64 items-center justify-center">
+            <div className="h-9 w-9 animate-spin rounded-full border-2 border-[#bcd4f7] border-t-[#2878e9]" aria-label="Loading progress" />
+          </div>
+        ) : (
+          <>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <ProgressMetric label="Average mastery" value={`${Math.round(averageMastery * 100)}%`} tone="blue" />
+              <ProgressMetric label="Concepts assessed" value={`${assessedConcepts.length}/${concepts.length}`} tone="orange" />
+              <ProgressMetric label="Concepts mastered" value={String(masteredConcepts.length)} tone="green" />
+              <ProgressMetric label="Mastery gained" value={`${totalGain > 0 ? '+' : ''}${Math.round(totalGain * 100)}%`} tone="purple" />
+            </div>
+
+            <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+              <div className="soft-card p-5 sm:p-7">
+                <h2 className="text-xl font-bold text-[#111827]">Concept mastery</h2>
+                <p className="mt-1 text-sm text-[#747983]">Current scores from your knowledge map</p>
+                {rankedConcepts.length > 0 ? (
+                  <div className="mt-6 space-y-5">
+                    {rankedConcepts.map((concept) => (
+                      <div key={concept.id}>
+                        <div className="mb-2 flex items-center justify-between gap-4 text-sm">
+                          <span className="truncate font-semibold text-[#252930]">{concept.name}</span>
+                          <span className="shrink-0 text-[#747983]">{Math.round(concept.mastery_score * 100)}%</span>
+                        </div>
+                        <div className="h-2 overflow-hidden rounded-full bg-[#edf0f4]">
+                          <div
+                            className="h-full rounded-full bg-[#4b98f9] transition-[width] duration-500"
+                            style={{ width: `${Math.round(concept.mastery_score * 100)}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-6 rounded-xl bg-[#f5f6f8] p-5 text-sm text-[#747983]">Your concept scores will appear once the knowledge map is ready.</p>
+                )}
+              </div>
+
+              <div className="soft-card p-5 sm:p-7">
+                <MasteryHistory events={masteryEvents} conceptNames={conceptNames} />
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function ProgressMetric({ label, value, tone }: { label: string; value: string; tone: 'blue' | 'orange' | 'green' | 'purple' }) {
+  const colors = {
+    blue: 'bg-[#e8f1ff] text-[#2878e9]',
+    orange: 'bg-[#fff3df] text-[#d88908]',
+    green: 'bg-[#e2f7ef] text-[#159568]',
+    purple: 'bg-[#f0eaff] text-[#7652d6]',
+  };
+
+  return (
+    <div className="soft-card p-5">
+      <span className={`inline-flex rounded-lg px-2.5 py-1 text-xs font-semibold ${colors[tone]}`}>{label}</span>
+      <p className="mt-4 text-3xl font-bold text-[#111827]">{value}</p>
+    </div>
   );
 }
 
@@ -495,7 +688,7 @@ function AbandonedSessionView({
   }, {} as Record<string, string>) || {};
 
   return (
-    <section className="workspace-pattern flex min-h-[calc(100vh-76px)] items-center justify-center p-6">
+    <section className="workspace-pattern flex min-h-[calc(100vh-88px)] items-center justify-center p-6">
       <div className="soft-card w-full max-w-2xl p-10">
         <div className="text-center">
           <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#f0f2f5] text-3xl text-[#8792a5]">
@@ -615,7 +808,7 @@ function CompletedSessionView({
   }).sort((a, b) => b.finalScore - a.finalScore);
 
   return (
-    <section className="workspace-pattern min-h-[calc(100vh-76px)] p-4 sm:p-6 overflow-x-hidden w-full">
+    <section className="workspace-pattern min-h-[calc(100vh-88px)] p-4 sm:p-6 overflow-x-hidden w-full">
       <div className="mx-auto max-w-4xl w-full">
         {/* Celebration Card */}
         <div className="soft-card p-6 sm:p-10 text-center w-full overflow-hidden">
@@ -709,15 +902,6 @@ function CompletedSessionView({
             >
               Start a new session
             </button>
-            {/* Session history placeholder - as per design missing backend capability note */}
-            <button
-              type="button"
-              disabled
-              className="w-full sm:w-auto rounded-xl border border-[#dfe6ef] bg-white px-6 py-3 font-semibold text-[#8792a5] opacity-50 cursor-not-allowed"
-              title="Session history coming soon"
-            >
-              Review session history
-            </button>
           </div>
         </div>
       </div>
@@ -734,7 +918,7 @@ function AnalyzingView({ topic, onCancel }: { topic: string; onCancel: () => voi
   ];
 
   return (
-    <section className="workspace-pattern flex min-h-[calc(100vh-76px)] flex-col items-center justify-center px-4 sm:px-5 py-8 sm:py-12 w-full overflow-hidden">
+    <section className="workspace-pattern flex min-h-[calc(100vh-88px)] flex-col items-center justify-center px-4 sm:px-5 py-8 sm:py-12 w-full overflow-hidden">
       <div className="soft-card w-full max-w-[670px] p-5 sm:p-7 lg:p-10">
         <div className="text-center">
           <span className="mx-auto flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-full border-2 border-[#9dbaff] bg-[#f1f6ff] text-xl sm:text-2xl text-[#1463ff]">⌘</span>
@@ -776,31 +960,6 @@ function GraphPanel({ graph, isLoading, error, onRetry, topic }: { graph?: Prere
       topic={topic}
       onRetry={onRetry}
     />
-  );
-}
-
-function RootGapView({ rootGap, graph, isLoading, onContinue }: { rootGap: RootGapResult | null; graph?: PrerequisiteGraph; isLoading: boolean; onContinue: () => void }) {
-  const path = graph?.concepts.slice(0, 4) || [];
-  return (
-    <section className="min-h-[calc(100vh-76px)] px-4 py-6 sm:px-6 sm:py-10 w-full overflow-x-hidden">
-      <div className="mx-auto max-w-5xl text-center w-full">
-        <span className="rounded-full bg-[#ddf4ea] px-4 py-2 text-sm font-semibold text-[#18986b]">✓ Diagnosis complete</span>
-        <h1 className="mt-6 text-3xl sm:text-4xl font-bold tracking-tight">We found the foundational gap</h1>
-        <p className="mx-auto mt-3 max-w-2xl text-base sm:text-lg text-[#718096] px-4">Pinpointing the real starting point means the rest can click into place much faster.</p>
-      </div>
-      <div className="mx-auto mt-8 sm:mt-10 max-w-5xl w-full">
-        <RootGapCard rootGap={rootGap} isLoading={isLoading} onFixGap={onContinue} />
-        {rootGap && (
-          <div className="soft-card mt-6 sm:mt-7 p-4 sm:p-7 lg:p-9 w-full overflow-hidden">
-            <h2 className="text-lg sm:text-xl font-bold"><span className="mr-2 text-[#1463ff]">⌕</span>Evidence used to identify the gap</h2>
-            <div className="mt-5 grid gap-4 sm:grid-cols-2 w-full">
-              {rootGap.root_gap.reasons.slice(0, 4).map((reason, index) => <div key={reason} className="rounded-xl border border-[#dfe6ef] bg-[#f8fafc] p-4 break-words"><p className="font-semibold text-[#10213d]">Signal {index + 1}</p><p className="mt-1 text-sm leading-6 text-[#718096]">{reason}</p></div>)}
-            </div>
-            {path.length > 0 && <p className="mt-6 text-sm text-[#718096] break-words">Learning path: {path.map((concept) => concept.name).join(' → ')}</p>}
-          </div>
-        )}
-      </div>
-    </section>
   );
 }
 

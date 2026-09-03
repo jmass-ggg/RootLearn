@@ -14,7 +14,6 @@ interface SidebarSection {
   icon: React.ReactNode;
   phase?: SessionState | SessionState[];
   isAccessible: boolean;
-  href?: string;
 }
 
 // Icon components for each section
@@ -36,18 +35,6 @@ const DiagnosisIcon = () => (
   </svg>
 );
 
-const RootGapIcon = () => (
-  <svg className="w-5 h-5" fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" stroke="currentColor">
-    <path d="M13 10V3L4 14h7v7l9-11h-7z" />
-  </svg>
-);
-
-const TutorIcon = () => (
-  <svg className="w-5 h-5" fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" stroke="currentColor">
-    <path d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-  </svg>
-);
-
 const TeachBackIcon = () => (
   <svg className="w-5 h-5" fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" stroke="currentColor">
     <path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -57,12 +44,6 @@ const TeachBackIcon = () => (
 const ProgressIcon = () => (
   <svg className="w-5 h-5" fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" stroke="currentColor">
     <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-  </svg>
-);
-
-const HistoryIcon = () => (
-  <svg className="w-5 h-5" fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" stroke="currentColor">
-    <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
   </svg>
 );
 
@@ -107,15 +88,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: <OverviewIcon />,
       phase: ['analyzing', 'diagnosing', 'tutoring', 'teachback', 'completed'],
       isAccessible: true,
-      href: `/sessions/${sessionId}`,
     },
     {
       id: 'knowledge-map',
       label: 'Knowledge Map',
       icon: <KnowledgeMapIcon />,
-      phase: ['diagnosing', 'tutoring', 'teachback', 'completed'],
+      phase: 'tutoring',
       isAccessible: true,
-      href: `/sessions/${sessionId}/graph`,
     },
     {
       id: 'diagnosis',
@@ -123,25 +102,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: <DiagnosisIcon />,
       phase: 'diagnosing',
       isAccessible: currentPhase === 'diagnosing',
-      href: currentPhase === 'diagnosing' ? `/sessions/${sessionId}` : undefined,
-    },
-    {
-      id: 'root-gap',
-      label: 'Root Gap',
-      icon: <RootGapIcon />,
-      phase: ['tutoring', 'teachback', 'completed'],
-      isAccessible: ['tutoring', 'teachback', 'completed'].includes(currentPhase),
-      href: ['tutoring', 'teachback', 'completed'].includes(currentPhase) 
-        ? `/sessions/${sessionId}/root-gap` 
-        : undefined,
-    },
-    {
-      id: 'ai-tutor',
-      label: 'AI Tutor',
-      icon: <TutorIcon />,
-      phase: 'tutoring',
-      isAccessible: currentPhase === 'tutoring',
-      href: currentPhase === 'tutoring' ? `/sessions/${sessionId}/tutor` : undefined,
     },
     {
       id: 'teach-back',
@@ -149,19 +109,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: <TeachBackIcon />,
       phase: 'teachback',
       isAccessible: currentPhase === 'teachback',
-      href: currentPhase === 'teachback' ? `/sessions/${sessionId}/teachback` : undefined,
     },
     {
       id: 'progress',
       label: 'Progress',
       icon: <ProgressIcon />,
-      isAccessible: false, // Not implemented yet
-    },
-    {
-      id: 'session-history',
-      label: 'Session History',
-      icon: <HistoryIcon />,
-      isAccessible: false, // Not implemented yet
+      phase: 'completed',
+      isAccessible: true,
     },
   ];
 
@@ -173,7 +127,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   };
 
   const handleSectionClick = (section: SidebarSection) => {
-    if (section.isAccessible && section.href) {
+    if (section.isAccessible) {
       onNavigate?.(section.id);
       setIsMobileOpen(false);
     }
@@ -183,7 +137,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     <div className="flex flex-col h-full">
       {/* Navigation sections */}
       <nav className="flex-1 px-3 py-4 space-y-1">
-        {sections.map((section) => {
+        {sections.filter((section) => section.isAccessible).map((section) => {
           const active = isActive(section);
           const accessible = section.isAccessible;
           

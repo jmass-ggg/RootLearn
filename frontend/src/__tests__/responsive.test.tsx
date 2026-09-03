@@ -237,9 +237,10 @@ describe('Responsive Layout Tests', () => {
         />
       );
 
-      // Verify active section is highlighted (tutoring should be active)
-      const tutorElements = screen.getAllByText('AI Tutor');
-      expect(tutorElements.length).toBeGreaterThan(0);
+      // Tutoring keeps the learner in the combined Knowledge Map workspace.
+      const knowledgeMapElements = screen.getAllByText('Knowledge Map');
+      expect(knowledgeMapElements.length).toBeGreaterThan(0);
+      expect(screen.queryByText('Root Gap')).not.toBeInTheDocument();
     });
   });
 

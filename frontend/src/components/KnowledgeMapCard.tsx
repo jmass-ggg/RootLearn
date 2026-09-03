@@ -116,7 +116,7 @@ export const KnowledgeMapCard: React.FC<KnowledgeMapCardProps> = ({
       </div>
 
       {/* Graph content area */}
-      <div className="flex-1 min-h-[400px] sm:min-h-[500px] relative overflow-hidden w-full">
+      <div className="relative h-[460px] w-full flex-none overflow-hidden sm:h-[520px]">
         {isLoading ? (
           <StateDisplay
             variant="loading"
