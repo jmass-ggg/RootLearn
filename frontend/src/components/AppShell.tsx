@@ -100,10 +100,17 @@ export default function AppShell({ children, status, topic, activeSection, onNew
           {navigation.map((item) => {
             const isActive = item.id === selected;
             return (
-              <div key={item.id} className={`flex h-12 items-center gap-3 rounded-xl px-4 text-[15px] font-medium ${isActive ? darkSidebar ? "bg-[#0b4773] text-white" : "bg-[#e7efff] text-[#1463ff]" : "opacity-90"}`}>
+              <button 
+                key={item.id} 
+                type="button"
+                disabled
+                className={`flex w-full h-12 items-center gap-3 rounded-xl px-4 text-[15px] font-medium cursor-not-allowed ${isActive ? darkSidebar ? "bg-[#0b4773] text-white" : "bg-[#e7efff] text-[#1463ff]" : "opacity-90"}`}
+                aria-label={`${item.label}${isActive ? ' (current)' : ''}`}
+                aria-current={isActive ? 'page' : undefined}
+              >
                 <span className={`flex h-6 w-6 items-center justify-center text-lg ${isActive ? "text-[#2d74ff]" : ""}`} aria-hidden="true">{item.icon}</span>
                 {item.label}
-              </div>
+              </button>
             );
           })}
         </nav>
