@@ -1,0 +1,208 @@
+/**
+ * Animation styles for state transitions
+ * Requirements: 15.3, 15.4, 15.5, 15.7, 15.8
+ * 
+ * All animations respect prefers-reduced-motion
+ * Durations are 200-300ms for optimal perceived performance
+ */
+
+/* Fade transitions for loading/content/error states */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Mastery bar fill animation - smooth updates (Requirements: 15.4, 15.7) */
+@keyframes masteryFill {
+  from {
+    width: 0;
+  }
+}
+
+/* Smooth content reveal (Requirements: 15.3) */
+.fade-in {
+  animation: fadeIn 300ms ease-in-out;
+}
+
+.fade-out {
+  animation: fadeOut 200ms ease-in-out;
+}
+
+.slide-up {
+  animation: slideUp 300ms ease-out;
+}
+
+/* State transition container (Requirements: 15.3, 15.5) */
+.state-transition {
+  transition: opacity 250ms ease-in-out, transform 250ms ease-out;
+}
+
+.state-transition-enter {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.state-transition-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.state-transition-exit {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.state-transition-exit-active {
+  opacity: 0;
+  transform: translateY(-8px);
+}
+
+/* Mastery bar animation - smooth width changes (Requirements: 15.4, 15.7) */
+.mastery-bar {
+  transition: width 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Smooth scroll behavior (Requirements: 15.5) */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Button press feedback (Requirements: 15.3) */
+button, .button {
+  transition: transform 100ms ease-out, background-color 200ms ease-in-out, border-color 200ms ease-in-out, color 200ms ease-in-out;
+}
+
+button:active:not(:disabled), .button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+/* Card hover states (Requirements: 15.3) */
+.card-interactive {
+  transition: transform 200ms ease-out, box-shadow 200ms ease-out;
+}
+
+.card-interactive:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* Focus visible states */
+:focus-visible {
+  outline: 2px solid #1463FF;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Respect user's motion preferences (Requirements: 15.8) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  html {
+    scroll-behavior: auto;
+  }
+
+  button:active:not(:disabled),
+  .button:active:not(:disabled) {
+    transform: none;
+  }
+
+  .card-interactive:hover {
+    transform: none;
+  }
+
+  /* Ensure state transitions still work but are instant */
+  .state-transition {
+    transition: none;
+  }
+}
+
+/* Loading pulse animation */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.animate-pulse-slow {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Smooth opacity transitions (Requirements: 15.3) */
+.opacity-transition {
+  transition: opacity 300ms ease-in-out;
+}
+
+/* Page transition (Requirements: 15.3) */
+.page-transition-enter {
+  opacity: 0;
+  transform: scale(0.98);
+}
+
+.page-transition-enter-active {
+  opacity: 1;
+  transform: scale(1);
+  transition: opacity 300ms ease-out, transform 300ms ease-out;
+}
+
+/* Content skeleton shimmer */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    #f0f0f0 0%,
+    #f8f8f8 50%,
+    #f0f0f0 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-shimmer {
+    animation: none;
+    background: #f0f0f0;
+  }
+}
+

@@ -3,14 +3,114 @@ import { Header, SessionState } from './Header';
 import { Sidebar } from './Sidebar';
 import { useRouter } from 'next/navigation';
 
+/**
+ * SessionShell Component
+ * 
+ * The main layout wrapper for all session screens.
+ * Provides consistent header, sidebar, and workspace background across the application.
+ * Highlights the active section in the sidebar based on current session phase.
+ * 
+ * @example
+ * // Diagnostic phase
+ * <SessionShell
+ *   sessionId={session.id}
+ *   userId={session.user_id}
+ *   currentPhase="diagnosing"
+ *   topic="Understanding Recursion"
+ * >
+ *   <DiagnosticScreen />
+ * </SessionShell>
+ * 
+ * @example
+ * // Tutoring phase
+ * <SessionShell
+ *   sessionId={session.id}
+ *   userId={session.user_id}
+ *   currentPhase="tutoring"
+ *   topic={session.target_concept}
+ * >
+ *   <TutorPanel />
+ * </SessionShell>
+ * 
+ * @example
+ * // Without active session (landing page)
+ * <SessionShell
+ *   sessionId=""
+ *   userId=""
+ *   currentPhase="analyzing"
+ *   topic=""
+ * >
+ *   <LandingContent />
+ * </SessionShell>
+ */
 export interface SessionShellProps {
+  /**
+   * Current session ID
+   * 
+   * Pass empty string if no active session (e.g., landing page)
+   * Used for navigation and session-specific actions
+   */
   sessionId: string;
+  
+  /**
+   * Current user ID
+   * 
+   * Pass empty string if not authenticated
+   * Preserved throughout navigation
+   */
   userId: string;
+  
+  /**
+   * Current phase of the learning session
+   * 
+   * Determines which sidebar section is highlighted
+   * Maps to workflow stages:
+   * - `analyzing`: Overview section
+   * - `diagnosing`: Diagnosis section  
+   * - `tutoring`: AI Tutor section
+   * - `teachback`: Teach-Back section
+   * - `completed`: Progress section
+   */
   currentPhase: SessionState;
+  
+  /**
+   * Current topic or learning goal
+   * 
+   * Displayed in header for context
+   * Can be user's original prompt or identified target concept
+   * 
+   * @example "Understanding recursion in programming"
+   * @example "Functions and Variables"
+   */
   topic: string;
+  
+  /**
+   * Main content area
+   * 
+   * All session screens render inside this layout
+   */
   children: React.ReactNode;
 }
 
+/**
+ * SessionShell Component Implementation
+ * 
+ * Composes Header, Sidebar, and main workspace into a cohesive layout.
+ * Conditionally shows sidebar only when in an active session.
+ * Applies subtle concept-network background pattern to workspace.
+ * Handles responsive layout adjustments for mobile and desktop.
+ * 
+ * Layout structure:
+ * ```
+ * ┌─────────────────────────────────┐
+ * │          Header                 │
+ * ├──────────┬─────────────────────┤
+ * │ Sidebar  │  Main Workspace     │
+ * │          │  (children)         │
+ * │          │                     │
+ * └──────────┴─────────────────────┘
+ * ```
+ */
 export const SessionShell: React.FC<SessionShellProps> = ({
   sessionId,
   userId,

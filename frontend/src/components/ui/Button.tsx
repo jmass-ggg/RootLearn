@@ -1,16 +1,117 @@
 import React from 'react';
 
+/**
+ * Button Component
+ * 
+ * A versatile button component with multiple variants, sizes, and states.
+ * Follows the RootLearn design system with consistent styling and accessibility.
+ * 
+ * @example
+ * // Primary action button (default)
+ * <Button variant="primary" onClick={handleSubmit}>
+ *   Submit Answer
+ * </Button>
+ * 
+ * @example
+ * // Secondary action button
+ * <Button variant="secondary" onClick={handleCancel}>
+ *   Cancel
+ * </Button>
+ * 
+ * @example
+ * // High-emphasis lime button
+ * <Button variant="lime" size="lg" onClick={handleStartLearning}>
+ *   Start Guided Learning
+ * </Button>
+ * 
+ * @example
+ * // Ghost button for subtle actions
+ * <Button variant="ghost" size="sm" onClick={handleEdit}>
+ *   Edit
+ * </Button>
+ * 
+ * @example
+ * // Loading state
+ * <Button variant="primary" isLoading={isSubmitting}>
+ *   Submitting...
+ * </Button>
+ * 
+ * @example
+ * // Form submit button
+ * <Button type="submit" isDisabled={!isValid}>
+ *   Create Session
+ * </Button>
+ */
 export interface ButtonProps {
+  /**
+   * Visual style variant of the button
+   * 
+   * - `primary`: Blue background, white text - for primary actions
+   * - `secondary`: White background, blue border - for secondary actions
+   * - `ghost`: Transparent background, blue text - for tertiary actions
+   * - `lime`: Lime background, dark text - for high-emphasis moments
+   * 
+   * @default 'primary'
+   */
   variant?: 'primary' | 'secondary' | 'ghost' | 'lime';
+  
+  /**
+   * Size of the button
+   * 
+   * - `sm`: Small (compact UI elements)
+   * - `md`: Medium (default, most buttons)
+   * - `lg`: Large (primary CTAs, hero sections)
+   * 
+   * @default 'md'
+   */
   size?: 'sm' | 'md' | 'lg';
+  
+  /**
+   * Shows a spinner and disables the button
+   * Use during async operations
+   * 
+   * @default false
+   */
   isLoading?: boolean;
+  
+  /**
+   * Disables the button and reduces opacity
+   * Use when action is not available
+   * 
+   * @default false
+   */
   isDisabled?: boolean;
+  
+  /**
+   * Click handler for the button
+   */
   onClick?: () => void;
+  
+  /**
+   * HTML button type attribute
+   * 
+   * @default 'button'
+   */
   type?: 'button' | 'submit' | 'reset';
+  
+  /**
+   * Button content (text, icons, or both)
+   */
   children: React.ReactNode;
+  
+  /**
+   * Additional CSS classes to apply
+   */
   className?: string;
 }
 
+/**
+ * Button Component Implementation
+ * 
+ * Renders a styled button with consistent design system tokens.
+ * Handles loading and disabled states automatically.
+ * Includes keyboard accessibility and ARIA attributes.
+ */
 export const Button: React.FC<ButtonProps> = ({
   variant = 'primary',
   size = 'md',

@@ -12,7 +12,9 @@ import TutorPanel from '@/components/TutorPanel';
 import TeachBackPanel from '@/components/TeachBackPanel';
 import AppShell, { WorkspaceSection } from '@/components/AppShell';
 import type { PrerequisiteGraph, RootGapResult, MasteryEvent } from '@/types';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
+import { FadeTransition } from '@/components/ui/FadeTransition';
+import { smoothScrollToTop } from '@/lib/scroll-utils';
 
 export default function SessionPage() {
   const params = useParams();
@@ -225,6 +227,10 @@ export default function SessionPage() {
         // State has changed
         setIsTransitioning(true);
         
+        // Smooth scroll to top when state changes (Requirements: 15.5)
+        // This helps users see the new content without disorientation
+        smoothScrollToTop();
+        
         // Invalidate relevant queries based on new state
         if (session.status === 'diagnosing') {
           queryClient.invalidateQueries({ queryKey: ['diagnostic-question', sessionId, userId] });
@@ -368,96 +374,99 @@ export default function SessionPage() {
         </div>
       )}
 
-      {session.status === 'analyzing' && <AnalyzingView topic={session.normalized_topic || session.original_prompt} onCancel={() => router.push('/')} />}
+      {/* Wrap each status view in FadeTransition for smooth state changes (Requirements: 15.3) */}
+      <FadeTransition transitionKey={session.status} duration={250}>
+        {session.status === 'analyzing' && <AnalyzingView topic={session.normalized_topic || session.original_prompt} onCancel={() => router.push('/')} />}
 
-      {session.status === 'diagnosing' && (
-        <section className="flex flex-col lg:flex-row gap-6 p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto">
-          {/* Left column (or top on mobile): Knowledge Map */}
-          <div className="w-full lg:w-1/2 xl:w-3/5 min-w-0">
-            {graphPanel}
-          </div>
-          
-          {/* Right column (or bottom on mobile): Diagnostic Assessment */}
-          <div className="w-full lg:w-1/2 xl:w-2/5 min-w-0">
-            <DiagnosticAssessmentCard 
-              question={currentQuestion || null} 
-              evaluation={lastEvaluation} 
-              isLoading={questionLoading} 
-              onSubmitAnswer={async (answer) => { 
-                await submitAnswerMutation.mutateAsync(answer); 
-              }} 
-            />
-          </div>
-        </section>
-      )}
-
-      {session.status === 'tutoring' && !showTutor && (
-        <RootGapView rootGap={rootGap || null} graph={graph} isLoading={rootGapLoading} onContinue={() => setShowTutor(true)} />
-      )}
-
-      {session.status === 'tutoring' && showTutor && (
-        <section className="mx-auto grid min-h-[calc(100vh-76px)] w-full max-w-[1600px] gap-4 sm:gap-6 p-4 sm:p-6 lg:p-7 xl:grid-cols-[340px_1fr]">
-          <LearningPath graph={graph} rootGap={rootGap || null} />
-          <div className="soft-card min-h-[600px] lg:min-h-[760px] overflow-hidden w-full min-w-0">
-            <TutorPanel
-              sessionId={sessionId}
-              userId={userId}
-              messages={tutorData?.messages || []}
-              currentConcept={currentConcept}
-              masteryScore={masteryScore}
-              confidenceScore={confidenceScore}
-              isLoading={tutorLoading}
-              onSendMessage={(message) => sendMessageMutation.mutateAsync(message)}
-              onExplainBack={async () => {
-                setIsRequestingTeachback(true);
-                try { await requestTeachbackMutation.mutateAsync(); } finally { setIsRequestingTeachback(false); }
-              }}
-            />
-            {isRequestingTeachback && <p className="px-8 pb-5 text-sm text-[#1463ff]">Preparing teach-back…</p>}
-          </div>
-        </section>
-      )}
-
-      {session.status === 'teachback' && (
-        <section className="workspace-pattern min-h-[calc(100vh-76px)] p-4 sm:p-6 lg:p-8">
-          <div className="soft-card mx-auto max-w-4xl overflow-hidden p-4 sm:p-6 lg:p-10 w-full">
-            <div className="mb-6 sm:mb-8 border-b border-[#e3e9f1] pb-4 sm:pb-6">
-              <span className="rounded-full bg-[#eaf1ff] px-3 py-1.5 text-sm font-semibold text-[#1463ff]">Teach-Back</span>
-              <h1 className="mt-4 text-2xl sm:text-3xl font-bold">Explain it in your own words</h1>
-              <p className="mt-2 text-sm sm:text-base text-[#718096]">Show that the concept makes sense without relying on memorized language.</p>
+        {session.status === 'diagnosing' && (
+          <section className="flex flex-col lg:flex-row gap-6 p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto">
+            {/* Left column (or top on mobile): Knowledge Map */}
+            <div className="w-full lg:w-1/2 xl:w-3/5 min-w-0">
+              {graphPanel}
             </div>
-            <TeachBackPanel 
-              currentConcept={currentConcept} 
-              masteryScore={masteryScore} 
-              confidenceScore={confidenceScore} 
-              evaluation={teachBackEvaluation} 
-              isLoading={submitTeachBackMutation.isPending} 
-              onSubmitExplanation={(explanation) => submitTeachBackMutation.mutateAsync(explanation)} 
-              onContinue={() => refetchSession()}
-              onRetry={() => setTeachBackEvaluation(null)}
-            />
-          </div>
-        </section>
-      )}
+            
+            {/* Right column (or bottom on mobile): Diagnostic Assessment */}
+            <div className="w-full lg:w-1/2 xl:w-2/5 min-w-0">
+              <DiagnosticAssessmentCard 
+                question={currentQuestion || null} 
+                evaluation={lastEvaluation} 
+                isLoading={questionLoading} 
+                onSubmitAnswer={async (answer) => { 
+                  await submitAnswerMutation.mutateAsync(answer); 
+                }} 
+              />
+            </div>
+          </section>
+        )}
 
-      {session.status === 'completed' && (
-        <CompletedSessionView 
-          masteryEvents={masteryEvents || []}
-          graph={graph}
-          isLoading={masteryLoading}
-          onNewSession={() => router.push('/new-session')}
-        />
-      )}
+        {session.status === 'tutoring' && !showTutor && (
+          <RootGapView rootGap={rootGap || null} graph={graph} isLoading={rootGapLoading} onContinue={() => setShowTutor(true)} />
+        )}
 
-      {session.status === 'abandoned' && (
-        <AbandonedSessionView
-          session={session}
-          masteryEvents={masteryEvents || []}
-          graph={graph}
-          isLoading={masteryLoading}
-          onNewSession={() => router.push('/new-session')}
-        />
-      )}
+        {session.status === 'tutoring' && showTutor && (
+          <section className="mx-auto grid min-h-[calc(100vh-76px)] w-full max-w-[1600px] gap-4 sm:gap-6 p-4 sm:p-6 lg:p-7 xl:grid-cols-[340px_1fr]">
+            <LearningPath graph={graph} rootGap={rootGap || null} />
+            <div className="soft-card min-h-[600px] lg:min-h-[760px] overflow-hidden w-full min-w-0">
+              <TutorPanel
+                sessionId={sessionId}
+                userId={userId}
+                messages={tutorData?.messages || []}
+                currentConcept={currentConcept}
+                masteryScore={masteryScore}
+                confidenceScore={confidenceScore}
+                isLoading={tutorLoading}
+                onSendMessage={(message) => sendMessageMutation.mutateAsync(message)}
+                onExplainBack={async () => {
+                  setIsRequestingTeachback(true);
+                  try { await requestTeachbackMutation.mutateAsync(); } finally { setIsRequestingTeachback(false); }
+                }}
+              />
+              {isRequestingTeachback && <p className="px-8 pb-5 text-sm text-[#1463ff]">Preparing teach-back…</p>}
+            </div>
+          </section>
+        )}
+
+        {session.status === 'teachback' && (
+          <section className="workspace-pattern min-h-[calc(100vh-76px)] p-4 sm:p-6 lg:p-8">
+            <div className="soft-card mx-auto max-w-4xl overflow-hidden p-4 sm:p-6 lg:p-10 w-full">
+              <div className="mb-6 sm:mb-8 border-b border-[#e3e9f1] pb-4 sm:pb-6">
+                <span className="rounded-full bg-[#eaf1ff] px-3 py-1.5 text-sm font-semibold text-[#1463ff]">Teach-Back</span>
+                <h1 className="mt-4 text-2xl sm:text-3xl font-bold">Explain it in your own words</h1>
+                <p className="mt-2 text-sm sm:text-base text-[#718096]">Show that the concept makes sense without relying on memorized language.</p>
+              </div>
+              <TeachBackPanel 
+                currentConcept={currentConcept} 
+                masteryScore={masteryScore} 
+                confidenceScore={confidenceScore} 
+                evaluation={teachBackEvaluation} 
+                isLoading={submitTeachBackMutation.isPending} 
+                onSubmitExplanation={(explanation) => submitTeachBackMutation.mutateAsync(explanation)} 
+                onContinue={() => refetchSession()}
+                onRetry={() => setTeachBackEvaluation(null)}
+              />
+            </div>
+          </section>
+        )}
+
+        {session.status === 'completed' && (
+          <CompletedSessionView 
+            masteryEvents={masteryEvents || []}
+            graph={graph}
+            isLoading={masteryLoading}
+            onNewSession={() => router.push('/new-session')}
+          />
+        )}
+
+        {session.status === 'abandoned' && (
+          <AbandonedSessionView
+            session={session}
+            masteryEvents={masteryEvents || []}
+            graph={graph}
+            isLoading={masteryLoading}
+            onNewSession={() => router.push('/new-session')}
+          />
+        )}
+      </FadeTransition>
     </AppShell>
   );
 }

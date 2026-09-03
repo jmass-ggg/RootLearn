@@ -2,6 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
+@import '../styles/animations.css';
+
 :root {
   --background: #f4f7fb;
   --foreground: #10213d;

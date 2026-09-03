@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { FadeIn } from '@/components/ui/FadeTransition';
 import { useEffect } from 'react';
 
 interface ProgressStep {

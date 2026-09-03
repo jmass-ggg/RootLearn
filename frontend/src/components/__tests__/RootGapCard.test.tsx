@@ -132,14 +132,14 @@ describe('RootGapCard Component', () => {
     });
   });
 
-  describe('Fix This Gap Button', () => {
-    it('should render the "Fix This Gap" button', () => {
+  describe('Start Guided Learning Button', () => {
+    it('should render the "Start guided learning" button', () => {
       const rootGap = createTestRootGap();
       const onFixGap = vi.fn();
 
       render(<RootGapCard rootGap={rootGap} isLoading={false} onFixGap={onFixGap} />);
 
-      const button = screen.getByRole('button', { name: /fix this gap/i });
+      const button = screen.getByRole('button', { name: /start guided learning/i });
       expect(button).toBeInTheDocument();
     });
 
@@ -149,7 +149,7 @@ describe('RootGapCard Component', () => {
 
       render(<RootGapCard rootGap={rootGap} isLoading={false} onFixGap={onFixGap} />);
 
-      const button = screen.getByRole('button', { name: /fix this gap/i });
+      const button = screen.getByRole('button', { name: /start guided learning/i });
       fireEvent.click(button);
 
       expect(onFixGap).toHaveBeenCalledTimes(1);

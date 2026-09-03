@@ -23,6 +23,33 @@ export default function TeachBackPage() {
   const sessionId = params.sessionId as string;
   const userId = searchParams.get('user_id');
 
+  // Mutation for submitting teach-back explanation - MUST be at top level
+  const submitExplanationMutation = useMutation({
+    mutationFn: async (explanation: string) => {
+      if (!userId || !sessionId) {
+        throw new Error('Missing required parameters');
+      }
+      
+      // Get current concept from tutor data
+      const tutorResponse = await api.tutor.getMessages(sessionId, userId);
+      if (!tutorResponse?.concept_id) {
+        throw new Error('No current concept');
+      }
+      
+      return api.teachback.submit(sessionId, {
+        user_id: userId,
+        concept_id: tutorResponse.concept_id,
+        explanation,
+      });
+    },
+    onSuccess: () => {
+      if (userId && sessionId) {
+        queryClient.invalidateQueries({ queryKey: ['graph', sessionId, userId] });
+        queryClient.invalidateQueries({ queryKey: ['session', sessionId, userId] });
+      }
+    },
+  });
+
   // Fetch session data
   const {
     data: session,
@@ -123,24 +150,6 @@ export default function TeachBackPage() {
   const conceptData = graph?.concepts.find((c) => c.id === tutorData?.concept_id);
   const masteryScore = conceptData?.mastery_score || 0;
   const confidenceScore = conceptData?.confidence_score || 0;
-
-  // Mutation for submitting teach-back explanation
-  const submitExplanationMutation = useMutation({
-    mutationFn: async (explanation: string) => {
-      if (!currentConcept) {
-        throw new Error('No current concept');
-      }
-      return api.teachback.submit(sessionId, {
-        user_id: userId,
-        concept_id: currentConcept.id,
-        explanation,
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['graph', sessionId, userId] });
-      queryClient.invalidateQueries({ queryKey: ['session', sessionId, userId] });
-    },
-  });
 
   // Handle continue action (navigate based on evaluation result)
   const handleContinue = () => {

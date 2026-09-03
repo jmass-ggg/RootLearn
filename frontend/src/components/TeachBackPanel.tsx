@@ -5,6 +5,7 @@ import { TeachBackResponse } from '@/types/teachback';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { StateDisplay } from '@/components/ui/StateDisplay';
+import { FadeIn, FadeTransition } from '@/components/ui/FadeTransition';
 
 interface TeachBackPanelProps {
   currentConcept: {
@@ -174,7 +175,7 @@ export default function TeachBackPanel({
                 </p>
                 <ul className="list-disc list-inside text-sm text-text-body space-y-1">
                   <li>Explain the core concept clearly</li>
-                  <li>Include why it's important or how it works</li>
+                  <li>Include why it&apos;s important or how it works</li>
                   <li>Use your own words, not just what you memorized</li>
                   <li>Add an example if it helps</li>
                 </ul>
@@ -265,7 +266,7 @@ export default function TeachBackPanel({
               Evaluation Results
             </h2>
             <p className="text-base text-text-body">
-              Here's how well you explained the concept
+              Here&apos;s how well you explained the concept
             </p>
           </div>
 

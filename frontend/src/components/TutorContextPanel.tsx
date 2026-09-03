@@ -1,6 +1,7 @@
 'use client';
 
 import { Card } from './ui/Card';
+import { FadeIn } from './ui/FadeTransition';
 import type { PrerequisiteGraph, RootGapResult } from '@/types';
 
 interface TutorContextPanelProps {
@@ -55,7 +56,8 @@ export default function TutorContextPanel({
     learningPath.some((c) => c.id === conceptId);
 
   return (
-    <div className="space-y-6">
+    <FadeIn duration={300}>
+      <div className="space-y-6">
       {/* Current objective card */}
       <Card variant="default" padding="lg">
         <div className="space-y-4">
@@ -219,5 +221,6 @@ export default function TutorContextPanel({
         </div>
       </Card>
     </div>
+    </FadeIn>
   );
 }

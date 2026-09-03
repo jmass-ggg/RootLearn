@@ -5,6 +5,7 @@ import { DiagnosticQuestion, DiagnosticEvaluation } from '@/types/diagnostic';
 import { Button } from './ui/Button';
 import { Card } from './ui/Card';
 import { StateDisplay } from './ui/StateDisplay';
+import { FadeIn, FadeTransition } from './ui/FadeTransition';
 import { colors } from '@/theme/tokens';
 
 interface DiagnosticAssessmentCardProps {
@@ -80,7 +81,8 @@ export default function DiagnosticAssessmentCard({
 
   return (
     <Card variant="default" padding="xl" className="h-full">
-      <div className="space-y-6">
+      <FadeTransition transitionKey={question?.question_id || 'no-question'} duration={250}>
+        <div className="space-y-6">
         {/* Concept Badge with mastery color */}
         <div className="flex items-center justify-between">
           <span
@@ -175,7 +177,8 @@ export default function DiagnosticAssessmentCard({
 
         {/* Evaluation Feedback */}
         {evaluation && (
-          <div className="space-y-4">
+          <FadeIn duration={300}>
+            <div className="space-y-4">
             <h3 className="text-lg font-semibold text-text-heading">
               Evaluation Results
             </h3>
@@ -267,8 +270,10 @@ export default function DiagnosticAssessmentCard({
               </div>
             )}
           </div>
+          </FadeIn>
         )}
       </div>
+      </FadeTransition>
     </Card>
   );
 }

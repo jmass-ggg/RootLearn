@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { TutorMessage, TutorMessageResponse } from '@/types/tutor';
 import { Button } from './ui/Button';
+import { smoothScrollToBottom } from '@/lib/scroll-utils';
 
 interface TutorPanelProps {
   sessionId: string;
@@ -47,12 +48,15 @@ export default function TutorPanel({
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Auto-scroll to bottom when new messages arrive
-  // Requirements: 8.6 - auto-scroll behavior
+  // Requirements: 8.6 - auto-scroll behavior, 15.5 - smooth scroll
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (messagesContainerRef.current) {
+      smoothScrollToBottom(messagesContainerRef.current);
+    }
   }, [messages]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -148,6 +152,7 @@ export default function TutorPanel({
     <div className="flex h-full min-h-[760px] flex-col">
       {/* Chat messages area - Requirements: 8.5, 8.6, 8.10, 8.11 */}
       <div
+        ref={messagesContainerRef}
         className="min-h-[500px] flex-1 space-y-4 overflow-y-auto bg-bg-workspace p-5 sm:p-8 overscroll-contain"
         role="log"
         aria-live="polite"

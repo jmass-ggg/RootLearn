@@ -8,16 +8,28 @@ import { SessionShell } from "@/components/layout/SessionShell";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { api } from "@/lib/api";
+import { useToast } from "@/lib/useToast";
 
 const topics = ["Recursion", "Calculus", "Probability", "SQL Joins", "Neural Networks"];
 
 export default function NewSessionPage() {
   const router = useRouter();
+  const toast = useToast();
   const [prompt, setPrompt] = useState("");
   
   const mutation = useMutation({
     mutationFn: (value: string) => api.sessions.create({ user_id: uuidv4(), prompt: value }),
-    onSuccess: (session) => router.push(`/session/${session.id}?user_id=${session.user_id}`),
+    onSuccess: (session) => {
+      toast.success("Session created successfully!");
+      router.push(`/session/${session.id}?user_id=${session.user_id}`);
+    },
+    onError: (error) => {
+      toast.error(
+        error instanceof Error 
+          ? error.message 
+          : "Failed to create session. Please try again."
+      );
+    },
   });
   
   const submit = (event: FormEvent) => {

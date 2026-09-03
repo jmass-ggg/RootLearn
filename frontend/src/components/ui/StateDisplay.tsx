@@ -1,16 +1,106 @@
 import React from 'react';
 import { Button } from './Button';
+import { FadeIn } from './FadeTransition';
 
+/**
+ * StateDisplay Component
+ * 
+ * A centered, intentional display for loading, empty, and error states.
+ * Provides consistent user feedback across the application with icons, messages, and actions.
+ * 
+ * @example
+ * // Loading state while fetching data
+ * <StateDisplay
+ *   variant="loading"
+ *   title="Analyzing your understanding"
+ *   description="This usually takes about a minute..."
+ * />
+ * 
+ * @example
+ * // Empty state when no data exists
+ * <StateDisplay
+ *   variant="empty"
+ *   title="No sessions yet"
+ *   description="Start your first learning session to begin"
+ *   action={{
+ *     label: "Create Session",
+ *     onClick: () => router.push('/new-session')
+ *   }}
+ * />
+ * 
+ * @example
+ * // Error state with retry action
+ * <StateDisplay
+ *   variant="error"
+ *   title="Failed to load session"
+ *   description="There was a problem connecting to the server"
+ *   action={{
+ *     label: "Retry",
+ *     onClick: () => refetch()
+ *   }}
+ * />
+ * 
+ * @example
+ * // Simple loading without description
+ * <StateDisplay
+ *   variant="loading"
+ *   title="Loading..."
+ * />
+ */
 export interface StateDisplayProps {
+  /**
+   * Type of state to display
+   * 
+   * - `loading`: Shows spinner - use during data fetching or async operations
+   * - `empty`: Shows empty icon - use when no data exists
+   * - `error`: Shows warning icon - use when operations fail
+   */
   variant: 'loading' | 'empty' | 'error';
+  
+  /**
+   * Primary message displayed prominently
+   * 
+   * Should be concise and descriptive of the current state
+   * 
+   * @example "Analyzing your understanding"
+   * @example "No questions available"
+   * @example "Failed to load session"
+   */
   title: string;
+  
+  /**
+   * Optional secondary message providing additional context
+   * 
+   * Use to provide helpful information or next steps
+   * 
+   * @example "This usually takes about a minute..."
+   * @example "Complete the diagnostic assessment to continue"
+   * @example "Check your connection and try again"
+   */
   description?: string;
+  
+  /**
+   * Optional action button
+   * 
+   * Provide when there's a clear next step for the user
+   * Common for error states (retry) and empty states (create)
+   * Rarely used for loading states
+   */
   action?: {
+    /** Button label text */
     label: string;
+    /** Click handler function */
     onClick: () => void;
   };
 }
 
+/**
+ * StateDisplay Component Implementation
+ * 
+ * Renders centered state feedback with appropriate icons, messages, and actions.
+ * Includes ARIA live regions for screen reader announcements.
+ * Uses FadeIn animation for smooth transitions.
+ */
 export const StateDisplay: React.FC<StateDisplayProps> = ({
   variant,
   title,
@@ -86,32 +176,34 @@ export const StateDisplay: React.FC<StateDisplayProps> = ({
   const ariaLive = variant === 'error' ? 'assertive' : 'polite';
 
   return (
-    <div 
-      className="flex flex-col items-center justify-center text-center py-12 px-6"
-      role={variant === 'error' ? 'alert' : 'status'}
-      aria-live={ariaLive}
-      aria-atomic="true"
-    >
-      <div className="mb-4">
-        {renderIcon()}
+    <FadeIn duration={300}>
+      <div 
+        className="flex flex-col items-center justify-center text-center py-12 px-6"
+        role={variant === 'error' ? 'alert' : 'status'}
+        aria-live={ariaLive}
+        aria-atomic="true"
+      >
+        <div className="mb-4">
+          {renderIcon()}
+        </div>
+        <h2 className="text-xl font-semibold text-text-heading mb-2">
+          {title}
+        </h2>
+        {description && (
+          <p className="text-base text-text-body mb-6 max-w-md">
+            {description}
+          </p>
+        )}
+        {action && (
+          <Button
+            variant="primary"
+            onClick={action.onClick}
+            aria-label={action.label}
+          >
+            {action.label}
+          </Button>
+        )}
       </div>
-      <h2 className="text-xl font-semibold text-text-heading mb-2">
-        {title}
-      </h2>
-      {description && (
-        <p className="text-base text-text-body mb-6 max-w-md">
-          {description}
-        </p>
-      )}
-      {action && (
-        <Button
-          variant="primary"
-          onClick={action.onClick}
-          aria-label={action.label}
-        >
-          {action.label}
-        </Button>
-      )}
-    </div>
+    </FadeIn>
   );
 };

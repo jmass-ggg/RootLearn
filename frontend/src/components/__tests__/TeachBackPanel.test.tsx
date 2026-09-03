@@ -63,10 +63,11 @@ describe('TeachBackPanel Component', () => {
         />
       );
 
-      expect(screen.getByText(/Teach-Back: Recursion/i)).toBeInTheDocument();
+      expect(screen.getByText('Recursion')).toBeInTheDocument();
+      expect(screen.getByText(/Teach it back/i)).toBeInTheDocument();
     });
 
-    it('should display current mastery score', () => {
+    it('should display the concept name badge', () => {
       const concept = createTestConcept();
       const onSubmit = vi.fn();
       const onContinue = vi.fn();
@@ -83,27 +84,7 @@ describe('TeachBackPanel Component', () => {
         />
       );
 
-      expect(screen.getByText('65%')).toBeInTheDocument();
-    });
-
-    it('should display confidence score', () => {
-      const concept = createTestConcept();
-      const onSubmit = vi.fn();
-      const onContinue = vi.fn();
-
-      render(
-        <TeachBackPanel
-          currentConcept={concept}
-          masteryScore={0.65}
-          confidenceScore={0.80}
-          evaluation={null}
-          isLoading={false}
-          onSubmitExplanation={onSubmit}
-          onContinue={onContinue}
-        />
-      );
-
-      expect(screen.getByText(/Confidence: 80%/i)).toBeInTheDocument();
+      expect(screen.getByText('Test Concept')).toBeInTheDocument();
     });
 
     it('should show loading state when isLoading is true', () => {
@@ -148,7 +129,7 @@ describe('TeachBackPanel Component', () => {
   });
 
   describe('Explanation Input Form', () => {
-    it('should display the instruction message', () => {
+    it('should display the heading and instruction', () => {
       const concept = createTestConcept('c1', 'Recursion');
       const onSubmit = vi.fn();
       const onContinue = vi.fn();
@@ -165,7 +146,7 @@ describe('TeachBackPanel Component', () => {
         />
       );
 
-      expect(screen.getByText(/Time to teach back!/i)).toBeInTheDocument();
+      expect(screen.getByText(/Teach it back/i)).toBeInTheDocument();
       expect(screen.getByText(/Explain Recursion in your own words/i)).toBeInTheDocument();
     });
 
@@ -188,7 +169,7 @@ describe('TeachBackPanel Component', () => {
 
       const textarea = screen.getByLabelText('Your Explanation') as HTMLTextAreaElement;
       expect(textarea.tagName).toBe('TEXTAREA');
-      expect(textarea.rows).toBe(12);
+      expect(textarea.rows).toBe(14);
     });
 
     it('should allow user to type explanation', () => {
@@ -236,7 +217,7 @@ describe('TeachBackPanel Component', () => {
       const textarea = screen.getByLabelText('Your Explanation');
       fireEvent.change(textarea, { target: { value: 'Too short' } });
 
-      const submitButton = screen.getByRole('button', { name: /submit my explanation/i });
+      const submitButton = screen.getByRole('button', { name: /submit explanation/i });
       expect(submitButton).toBeDisabled();
     });
 
@@ -262,7 +243,7 @@ describe('TeachBackPanel Component', () => {
       const explanation = 'This is a detailed explanation of the concept with sufficient length.';
       fireEvent.change(textarea, { target: { value: explanation } });
 
-      const submitButton = screen.getByRole('button', { name: /submit my explanation/i });
+      const submitButton = screen.getByRole('button', { name: /submit explanation/i });
       fireEvent.click(submitButton);
 
       await waitFor(() => {
@@ -294,7 +275,7 @@ describe('TeachBackPanel Component', () => {
         target: { value: 'This is a detailed explanation with sufficient length.' },
       });
 
-      const submitButton = screen.getByRole('button', { name: /submit my explanation/i });
+      const submitButton = screen.getByRole('button', { name: /submit explanation/i });
       fireEvent.click(submitButton);
 
       await waitFor(() => {
@@ -349,7 +330,9 @@ describe('TeachBackPanel Component', () => {
       );
 
       expect(screen.getByText('Average Score')).toBeInTheDocument();
-      expect(screen.getByText('80%')).toBeInTheDocument();
+      // Average score appears 4 times (Coverage, Reasoning, Clarity, Average), so we need to be more specific
+      const allScores = screen.getAllByText('80%');
+      expect(allScores.length).toBeGreaterThan(0);
     });
 
     it('should display demonstrated points', () => {
@@ -419,7 +402,7 @@ describe('TeachBackPanel Component', () => {
       expect(screen.getByText(/Misconception 1/i)).toBeInTheDocument();
     });
 
-    it('should display mastery update section', () => {
+    it('should display evaluation results section', () => {
       const concept = createTestConcept();
       const evaluation = createTestEvaluation();
       const onSubmit = vi.fn();
@@ -437,10 +420,8 @@ describe('TeachBackPanel Component', () => {
         />
       );
 
-      expect(screen.getByText(/Mastery Update/i)).toBeInTheDocument();
-      expect(screen.getByText('Previous')).toBeInTheDocument();
-      expect(screen.getByText('Updated')).toBeInTheDocument();
-      expect(screen.getByText('Change')).toBeInTheDocument();
+      expect(screen.getByText(/Evaluation Results/i)).toBeInTheDocument();
+      expect(screen.getByText(/Here's how well you explained the concept/i)).toBeInTheDocument();
     });
 
     it('should show positive feedback when mastery improves', () => {
@@ -483,7 +464,7 @@ describe('TeachBackPanel Component', () => {
         />
       );
 
-      expect(screen.getByText(/Almost there! Let's practice more/i)).toBeInTheDocument();
+      expect(screen.getByText(/Almost there! Let's strengthen your understanding/i)).toBeInTheDocument();
     });
 
     it('should hide explanation form when evaluation is shown', () => {
@@ -576,7 +557,7 @@ describe('TeachBackPanel Component', () => {
       expect(screen.getByRole('button', { name: /continue tutoring/i })).toBeInTheDocument();
     });
 
-    it('should show "Continue Learning" when mastery is sufficient', () => {
+    it('should show "Continue" when mastery is sufficient', () => {
       const concept = createTestConcept();
       const evaluation = createTestEvaluation(0.80, 0.80, 0.80, false);
       const onSubmit = vi.fn();
@@ -594,7 +575,7 @@ describe('TeachBackPanel Component', () => {
         />
       );
 
-      expect(screen.getByRole('button', { name: /continue learning/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /^continue$/i })).toBeInTheDocument();
     });
 
     it('should not show continue button before evaluation', () => {

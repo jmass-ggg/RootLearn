@@ -5,18 +5,31 @@ import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { v4 as uuidv4 } from "uuid";
 import { api } from "@/lib/api";
+import type { SessionResponse } from "@/lib/api";
 import { BrandMark } from "@/components/AppShell";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { useToast } from "@/lib/useToast";
 
 const suggestedTopics = ["Recursion", "Calculus", "Probability", "SQL Joins", "Neural Networks"];
 
 export default function Home() {
   const [prompt, setPrompt] = useState("");
   const router = useRouter();
+  const toast = useToast();
   const createSessionMutation = useMutation({
     mutationFn: (userPrompt: string) => api.sessions.create({ user_id: uuidv4(), prompt: userPrompt }),
-    onSuccess: (session) => router.push(`/sessions/${session.id}?user_id=${session.user_id}`),
+    onSuccess: (session: SessionResponse) => {
+      toast.success("Session created! Redirecting...");
+      router.push(`/session/${session.id}?user_id=${session.user_id}`);
+    },
+    onError: (error: Error) => {
+      toast.error(
+        error instanceof Error 
+          ? error.message 
+          : "Failed to create session. Please try again."
+      );
+    },
   });
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();

@@ -2,6 +2,7 @@
 
 import { RootGapResult } from "@/types/root-gap";
 import { Button } from "@/components/ui/Button";
+import { FadeIn } from "@/components/ui/FadeTransition";
 
 interface RootGapCardProps {
   rootGap: RootGapResult | null;
@@ -12,25 +13,30 @@ interface RootGapCardProps {
 export default function RootGapCard({ rootGap, isLoading, onFixGap }: RootGapCardProps) {
   if (isLoading) {
     return (
-      <div className="soft-card flex min-h-[360px] items-center justify-center">
-        <span className="h-12 w-12 animate-spin rounded-full border-4 border-[#c9d9ff] border-t-[#1463ff]" />
-        <span className="sr-only">Loading root gap</span>
-      </div>
+      <FadeIn duration={300}>
+        <div className="soft-card flex min-h-[360px] items-center justify-center">
+          <span className="h-12 w-12 animate-spin rounded-full border-4 border-[#c9d9ff] border-t-[#1463ff]" />
+          <span className="sr-only">Loading root gap</span>
+        </div>
+      </FadeIn>
     );
   }
   
   if (!rootGap) {
     return (
-      <div className="soft-card flex min-h-[280px] items-center justify-center p-8 text-center text-[#718096]">
-        No root gap identified yet
-      </div>
+      <FadeIn duration={300}>
+        <div className="soft-card flex min-h-[280px] items-center justify-center p-8 text-center text-[#718096]">
+          No root gap identified yet
+        </div>
+      </FadeIn>
     );
   }
 
   const gap = rootGap.root_gap;
   
   return (
-    <article className="soft-card overflow-hidden border-l-4 border-brand-lime p-7 sm:p-10">
+    <FadeIn duration={300}>
+      <article className="soft-card overflow-hidden border-l-4 border-brand-lime p-7 sm:p-10">
       {/* Header section with root concept name */}
       <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-start">
         <div>
@@ -110,6 +116,7 @@ export default function RootGapCard({ rootGap, isLoading, onFixGap }: RootGapCar
         </Button>
       </div>
     </article>
+    </FadeIn>
   );
 }
 
