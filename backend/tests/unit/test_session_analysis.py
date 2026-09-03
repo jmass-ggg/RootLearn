@@ -1,12 +1,14 @@
 """Tests for the session analysis background workflow."""
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 import uuid
 
 import pytest
+from fastapi import BackgroundTasks
 
-from app.routes.sessions import analyze_session_background
+from app.routes.sessions import analyze_session_background, retry_session_analysis
 
 
 @pytest.mark.asyncio
@@ -71,3 +73,39 @@ async def test_background_analysis_marks_failed_session_abandoned():
 
     assert session.status == "abandoned"
     failure_db.flush.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_retry_analysis_reactivates_failed_session_and_queues_work():
+    """A failed setup can be retried without creating a new session."""
+    session_id = uuid.uuid4()
+    user_id = uuid.uuid4()
+    session = SimpleNamespace(
+        id=session_id,
+        user_id=user_id,
+        original_prompt="Explain recursion",
+        normalized_topic=None,
+        target_concept_id=None,
+        status="abandoned",
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
+        completed_at=None,
+    )
+    result = MagicMock()
+    result.scalar_one_or_none.return_value = session
+    db = AsyncMock()
+    db.execute.return_value = result
+    background_tasks = BackgroundTasks()
+
+    response = await retry_session_analysis(
+        session_id=session_id,
+        background_tasks=background_tasks,
+        user_id=user_id,
+        db=db,
+    )
+
+    assert session.status == "analyzing"
+    assert response.status == "analyzing"
+    db.commit.assert_awaited_once()
+    db.refresh.assert_awaited_once_with(session)
+    assert len(background_tasks.tasks) == 1

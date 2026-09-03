@@ -15,6 +15,7 @@ from .exceptions import AIProviderError
 from .logging_service import AIRunLogger
 from .protocol import AIProvider
 from .providers.openai_provider import OpenAIProvider
+from .providers.local_fallback_provider import LocalFallbackProvider, ResilientAIProvider
 from .validated_ai_service import ValidatedAIService
 
 
@@ -47,13 +48,16 @@ def create_ai_provider(
             raise AIProviderError(
                 "OpenAI provider selected but OPENAI_API_KEY not configured"
             )
-        return OpenAIProvider(
+        provider = OpenAIProvider(
             api_key=settings.openai_api_key,
             model=getattr(settings, "openai_model", "gpt-4"),
             base_url=getattr(settings, "openai_base_url", None),
             timeout=getattr(settings, "ai_timeout_seconds", 45.0),
             max_retries=getattr(settings, "ai_max_retries", 2),
         )
+        if settings.ai_local_fallback_enabled:
+            return ResilientAIProvider(provider, LocalFallbackProvider())
+        return provider
     
     elif provider_name == "anthropic":
         if not settings.anthropic_api_key:

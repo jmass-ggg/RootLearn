@@ -3,8 +3,6 @@
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { api, APIError } from '@/lib/api';
-import { SessionResponse } from '@/lib/api';
-import KnowledgeGraph from '@/components/KnowledgeGraph';
 import { KnowledgeMapCard } from '@/components/KnowledgeMapCard';
 import DiagnosticAssessmentCard from '@/components/DiagnosticAssessmentCard';
 import RootGapCard from '@/components/RootGapCard';
@@ -64,7 +62,7 @@ export default function SessionPage() {
   } = useQuery({
     queryKey: ['graph', sessionId, userId],
     queryFn: () => api.graph.get(sessionId, userId!),
-    enabled: !!userId && !!session && session.status !== 'analyzing',
+    enabled: !!userId && !!session && session.status !== 'analyzing' && session.status !== 'abandoned',
     retry: (failureCount, error) => {
       if (error instanceof APIError && error.status === 404) {
         return false;
@@ -135,6 +133,17 @@ export default function SessionPage() {
   const [isRequestingTeachback, setIsRequestingTeachback] = useState(false);
   const [showTutor, setShowTutor] = useState(false);
   const [navigationNotice, setNavigationNotice] = useState<string | null>(null);
+
+  const retryAnalysisMutation = useMutation({
+    mutationFn: () => api.sessions.retryAnalysis(sessionId, userId!),
+    onSuccess: (retriedSession) => {
+      setShowKnowledgeMap(false);
+      setShowProgress(false);
+      setNavigationNotice(null);
+      queryClient.setQueryData(['session', sessionId, userId], retriedSession);
+      queryClient.invalidateQueries({ queryKey: ['session', sessionId, userId] });
+    },
+  });
 
   // Mutation for submitting diagnostic answers
   const submitAnswerMutation = useMutation({
@@ -554,12 +563,11 @@ export default function SessionPage() {
         )}
 
         {!showKnowledgeMap && !showProgress && session.status === 'abandoned' && (
-          <AbandonedSessionView
-            session={session}
-            masteryEvents={masteryEvents || []}
-            graph={graph}
-            isLoading={masteryLoading}
-            onNewSession={() => router.push('/new-session')}
+          <AnalysisFailedView
+            isRetrying={retryAnalysisMutation.isPending}
+            error={retryAnalysisMutation.error}
+            onRetry={() => retryAnalysisMutation.mutate()}
+            onChangeTopic={() => router.push('/new-session')}
           />
         )}
       </FadeTransition>
@@ -664,98 +672,51 @@ function ProgressMetric({ label, value, tone }: { label: string; value: string; 
   );
 }
 
-function AbandonedSessionView({
-  session,
-  masteryEvents,
-  graph,
-  isLoading,
-  onNewSession,
+function AnalysisFailedView({
+  isRetrying,
+  error,
+  onRetry,
+  onChangeTopic,
 }: {
-  session: SessionResponse;
-  masteryEvents: MasteryEvent[];
-  graph?: PrerequisiteGraph;
-  isLoading: boolean;
-  onNewSession: () => void;
+  isRetrying: boolean;
+  error: Error | null;
+  onRetry: () => void;
+  onChangeTopic: () => void;
 }) {
-  // Calculate what was accomplished
-  const conceptsWorkedOn = new Set(masteryEvents.map(e => e.concept_id)).size;
-  const totalProgress = masteryEvents.reduce((sum, e) => sum + (e.new_score - e.old_score), 0);
-
-  // Get concept names from graph
-  const conceptNames = graph?.concepts.reduce((acc, c) => {
-    acc[c.id] = c.name;
-    return acc;
-  }, {} as Record<string, string>) || {};
-
   return (
     <section className="workspace-pattern flex min-h-[calc(100vh-88px)] items-center justify-center p-6">
-      <div className="soft-card w-full max-w-2xl p-10">
+      <div className="soft-card w-full max-w-xl p-8 sm:p-10">
         <div className="text-center">
-          <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#f0f2f5] text-3xl text-[#8792a5]">
-            ⏸
+          <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#fff3df] text-3xl text-[#d88908]">
+            !
           </span>
-          <h1 className="mt-6 text-3xl font-bold">Session paused</h1>
+          <h1 className="mt-6 text-3xl font-bold">We couldn&apos;t build the knowledge map</h1>
           <p className="mx-auto mt-3 max-w-md text-[#718096]">
-            This learning session was not completed. You can begin a fresh session whenever you are ready.
+            The AI service is temporarily unavailable or has reached its usage limit. Your topic is saved, so you can safely retry the analysis.
           </p>
         </div>
-
-        {/* Show what was accomplished */}
-        {!isLoading && masteryEvents.length > 0 && (
-          <div className="mt-8 border-t border-[#e1e7ef] pt-8">
-            <h2 className="mb-4 text-center text-lg font-semibold text-[#10213d]">
-              Progress made before pausing
-            </h2>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="rounded-xl border border-[#dfe6ef] bg-[#f8fafc] p-4 text-center">
-                <p className="text-2xl font-bold text-[#1463ff]">{conceptsWorkedOn}</p>
-                <p className="mt-1 text-sm text-[#718096]">
-                  Concept{conceptsWorkedOn !== 1 ? 's' : ''} explored
-                </p>
-              </div>
-              <div className="rounded-xl border border-[#dfe6ef] bg-[#f8fafc] p-4 text-center">
-                <p className="text-2xl font-bold text-[#20a572]">
-                  {totalProgress > 0 ? `+${Math.round(totalProgress * 100)}%` : '0%'}
-                </p>
-                <p className="mt-1 text-sm text-[#718096]">Mastery gained</p>
-              </div>
-            </div>
-
-            {/* List concepts worked on */}
-            {conceptsWorkedOn > 0 && (
-              <div className="mt-6">
-                <p className="mb-3 text-sm font-medium text-[#718096]">Concepts you worked on:</p>
-                <div className="space-y-2">
-                  {Array.from(new Set(masteryEvents.map(e => e.concept_id))).slice(0, 5).map(conceptId => (
-                    <div 
-                      key={conceptId} 
-                      className="flex items-center gap-3 rounded-lg border border-[#e8edf4] bg-white px-4 py-2"
-                    >
-                      <span className="h-2 w-2 rounded-full bg-[#1463ff]"></span>
-                      <span className="text-sm text-[#10213d]">
-                        {conceptNames[conceptId] || conceptId}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+        {error && (
+          <p className="mt-6 rounded-xl border border-red-200 bg-red-50 p-3 text-center text-sm text-red-700" role="alert">
+            {error.message || 'The retry could not be started. Please try again.'}
+          </p>
         )}
-
-        {/* Actions */}
-        <div className="mt-8 flex flex-col gap-3 text-center">
-          {/* Note: Resume functionality would require backend support to restore session state */}
+        <div className="mt-8 flex flex-col gap-3 sm:flex-row">
           <button
             type="button"
-            onClick={onNewSession}
-            className="rounded-xl bg-[#1463ff] px-6 py-3 font-semibold text-white hover:bg-[#0d4fc7] transition-colors"
+            onClick={onRetry}
+            disabled={isRetrying}
+            className="flex-1 rounded-xl bg-[#1463ff] px-6 py-3 font-semibold text-white transition-colors hover:bg-[#0d4fc7] disabled:cursor-wait disabled:opacity-60"
           >
-            Start a new session
+            {isRetrying ? 'Retrying analysis…' : 'Try analysis again'}
           </button>
-          <p className="text-sm text-[#8792a5]">
-            Note: Resuming paused sessions is not currently available
-          </p>
+          <button
+            type="button"
+            onClick={onChangeTopic}
+            disabled={isRetrying}
+            className="flex-1 rounded-xl border border-[#dfe6ef] bg-white px-6 py-3 font-semibold text-[#4d5b70] transition-colors hover:bg-[#f5f7fa] disabled:opacity-60"
+          >
+            Change topic
+          </button>
         </div>
       </div>
     </section>

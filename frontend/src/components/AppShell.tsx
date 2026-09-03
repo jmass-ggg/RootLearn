@@ -44,6 +44,7 @@ function statusLabel(status?: string) {
   if (status === "tutoring") return "Learning";
   if (status === "teachback") return "Teach-Back";
   if (status === "completed") return "Complete";
+  if (status === "abandoned") return "Setup issue";
   return "Session";
 }
 
@@ -158,8 +159,8 @@ export default function AppShell({ children, status, topic, activeSection, onNew
         </nav>
         <div className="mt-auto p-5">
           <div className="rounded-2xl bg-[#f4f4f5] p-5 text-[#252930]">
-            <p className="mb-2 flex items-center gap-2 font-semibold"><span className="flex h-5 w-5 items-center justify-center rounded-full border-2 border-[#4b98f9] text-xs text-[#2878e9]">↗</span>{status === "analyzing" ? "Diagnosis in progress" : status === "completed" ? "Session complete" : "Guided session"}</p>
-            <p className="text-sm leading-6 text-[#747983]">{status === "analyzing" ? "Sections unlock once your knowledge map is ready." : status === "completed" ? "Review what you mastered and start again anytime." : "Follow the path from your root gap to real understanding."}</p>
+            <p className="mb-2 flex items-center gap-2 font-semibold"><span className="flex h-5 w-5 items-center justify-center rounded-full border-2 border-[#4b98f9] text-xs text-[#2878e9]">↗</span>{status === "analyzing" ? "Diagnosis in progress" : status === "completed" ? "Session complete" : status === "abandoned" ? "Setup needs attention" : "Guided session"}</p>
+            <p className="text-sm leading-6 text-[#747983]">{status === "analyzing" ? "Sections unlock once your knowledge map is ready." : status === "completed" ? "Review what you mastered and start again anytime." : status === "abandoned" ? "The knowledge map could not be generated. You can retry safely." : "Follow the path from your root gap to real understanding."}</p>
           </div>
         </div>
       </aside>

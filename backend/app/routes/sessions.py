@@ -34,7 +34,11 @@ def get_session_service(db: AsyncSession = Depends(get_db)) -> SessionService:
     return SessionService(db)
 
 
-async def analyze_session_background(session_id: uuid.UUID, prompt: str) -> None:
+async def analyze_session_background(
+    session_id: uuid.UUID,
+    prompt: str,
+    reuse_existing_target: bool = False,
+) -> None:
     """Identify the target, build its graph, and advance the session state."""
     try:
         async with get_db_context() as db:
@@ -43,10 +47,24 @@ async def analyze_session_background(session_id: uuid.UUID, prompt: str) -> None
             provider = get_ai_provider()
             ai_service = ValidatedAIService(provider, AIRunLogger(db))
 
-            target_concept = await ConceptService(db, ai_service).analyze_target_concept(
-                session_id=session_id,
-                prompt=prompt,
-            )
+            concept_service = ConceptService(db, ai_service)
+            target_concept = None
+
+            if reuse_existing_target:
+                session_result = await db.execute(
+                    select(LearningSession).where(LearningSession.id == session_id)
+                )
+                existing_session = session_result.scalar_one_or_none()
+                if existing_session and existing_session.target_concept_id:
+                    target_concept = await concept_service.get_concept(
+                        existing_session.target_concept_id
+                    )
+
+            if target_concept is None:
+                target_concept = await concept_service.analyze_target_concept(
+                    session_id=session_id,
+                    prompt=prompt,
+                )
             logger.info(
                 "target_concept_identified",
                 session_id=str(session_id),
@@ -70,7 +88,8 @@ async def analyze_session_background(session_id: uuid.UUID, prompt: str) -> None
             error_type=type(exc).__name__,
         )
 
-        # A failed analysis must be terminal; otherwise the client polls forever.
+        # Stop polling until the learner explicitly retries. The frontend treats
+        # this as a recoverable setup failure, not as a learner-paused session.
         try:
             async with get_db_context() as db:
                 result = await db.execute(
@@ -85,6 +104,65 @@ async def analyze_session_background(session_id: uuid.UUID, prompt: str) -> None
                 "background_analysis_failure_state_update_failed",
                 session_id=str(session_id),
             )
+
+
+@router.post(
+    "/sessions/{session_id}/retry-analysis",
+    response_model=SessionResponse,
+    responses={
+        200: {"description": "Session analysis restarted"},
+        404: {"description": "Session not found", "model": ErrorResponse},
+        409: {"description": "Session is not awaiting an analysis retry", "model": ErrorResponse},
+    },
+)
+async def retry_session_analysis(
+    session_id: uuid.UUID,
+    background_tasks: BackgroundTasks,
+    user_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """Restart a failed initial analysis without creating a new session."""
+    result = await db.execute(
+        select(LearningSession).where(
+            LearningSession.id == session_id,
+            LearningSession.user_id == user_id,
+        )
+    )
+    session = result.scalar_one_or_none()
+
+    if session is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=ErrorResponse.create(
+                code="session_not_found",
+                message="Session not found",
+                request_id=get_request_id(),
+            ),
+        )
+
+    if session.status != "abandoned":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=ErrorResponse.create(
+                code="analysis_retry_not_available",
+                message="This session is not awaiting an analysis retry",
+                request_id=get_request_id(),
+            ),
+        )
+
+    session.status = "analyzing"
+    await db.commit()
+    await db.refresh(session)
+
+    background_tasks.add_task(
+        analyze_session_background,
+        session.id,
+        session.original_prompt,
+        True,
+    )
+    logger.info("session_analysis_retry_started", session_id=str(session.id))
+
+    return SessionResponse.model_validate(session)
 
 
 @router.post(

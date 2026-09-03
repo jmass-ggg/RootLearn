@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     ai_timeout_seconds: float = 45.0
     ai_max_retries: int = 2
     ai_max_calls_per_session: int = 30
+    ai_local_fallback_enabled: bool = False
 
     # Application Configuration
     environment: Literal["development", "staging", "production"] = "development"

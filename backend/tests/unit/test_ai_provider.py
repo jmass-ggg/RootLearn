@@ -43,6 +43,8 @@ class TestProviderSwitching:
             database_url="postgresql://test",
             ai_provider="openai",
             openai_api_key="sk-test-key",
+            openai_model="gpt-4",
+            ai_local_fallback_enabled=False,
         )
         
         provider = create_ai_provider(settings)
@@ -100,6 +102,7 @@ class TestProviderSwitching:
             database_url="postgresql://test",
             ai_provider="anthropic",  # Configured for anthropic
             openai_api_key="sk-test",  # But has OpenAI key
+            ai_local_fallback_enabled=False,
         )
         
         # Override to use OpenAI despite config
